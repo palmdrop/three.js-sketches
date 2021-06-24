@@ -1,7 +1,10 @@
 import * as THREE from 'three';
+import * as dat from 'dat.gui';
+
+import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls'
+
 import { AnimationLoop } from '../../systems/loop/AnimationLoop';
 import { Resizer } from '../../systems/resize/Resizer'
-import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls'
 
 class Sketch {
     constructor() {
@@ -9,6 +12,8 @@ class Sketch {
         this.near = 0.1;
         this.backgroundColor = 0x455444;
         this.useSRGB = false;
+
+        this.paused = false;
     }    
 
     _createRenderer( canvas ) {
@@ -82,6 +87,8 @@ class Sketch {
         this.loop = new AnimationLoop();
         this.resizer = new Resizer( this.canvas, this.camera, this.renderer );
 
+        this.gui = new dat.GUI();
+
         this._populateScene();
 
         this.initialized = true;
@@ -109,16 +116,40 @@ class Sketch {
         };
 
         // CREATE LIGHT
-        const light = new THREE.DirectionalLight(
+        const directionalLight = new THREE.DirectionalLight(
             '#ffffff',
-            1
+            2
         );
-        light.position.set(5, 5, 5);
+        directionalLight.position.set(2, 2, 2);
+
+        const ambientLight = new THREE.AmbientLight(
+            '#ffffff',
+            0.2,
+        );
+
+        // GUI
+        const cubeFolder = this.gui.addFolder("Cube");
+        cubeFolder.add(cube.scale, 'x', 0, 5, 0.01);
+        cubeFolder.add(cube.scale, 'y', 0, 5, 0.01);
+        cubeFolder.add(cube.scale, 'z', 0, 5, 0.01);
+
+        const materialFolder = cubeFolder.addFolder("Material");
+        materialFolder.add(material, 'metalness', 0, 1.0, 0.01);
+        materialFolder.add(material, 'roughness', 0, 1.0, 0.01);
+
+        const lightFolder = this.gui.addFolder("Light");
+        lightFolder.add(directionalLight, 'intensity', 0, 5, 0.01);
+        lightFolder.add(directionalLight.position, 'x', -5, 5, 0.01);
+        lightFolder.add(directionalLight.position, 'y', -5, 5, 0.01);
+        lightFolder.add(directionalLight.position, 'z', -5, 5, 0.01);
+
+        this.gui.add(this, 'paused', 0, 1, 1.0);
 
         // ADD TO SCENE
         this.scene.add(
             cube,
-            light
+            directionalLight,
+            ambientLight
         );
     }
 
@@ -132,13 +163,16 @@ class Sketch {
     }
 
     _update( delta, now ) {
+        this.controls.update();
+
+        if( this.paused ) return;
+
         this.scene.traverse( object => {
             if( typeof object.update === "function" ) {
                 object.update( delta, now );
             }
         });
 
-        this.controls.update();
     }
 
     _render( delta, now ) {
