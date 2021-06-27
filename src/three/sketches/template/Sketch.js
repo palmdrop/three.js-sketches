@@ -14,6 +14,7 @@ class Sketch {
         this.useSRGB = false;
 
         this.paused = false;
+        this.initialized = false;
     }    
 
     _createRenderer( canvas ) {
@@ -76,7 +77,6 @@ class Sketch {
     }
 
     initialize( canvas, callback ) {
-        this.initialized = false;
 
         this.canvas = canvas;
         this.scene = this._createScene();
@@ -176,7 +176,11 @@ class Sketch {
     }
 
     _render( delta, now ) {
-        this.renderer.render( this.scene, this.camera );
+        if( this.composer ) {
+            this.composer.render( delta );
+        } else {
+            this.renderer.render( this.scene, this.camera );
+        }
     }
 
     stop() {
@@ -184,12 +188,18 @@ class Sketch {
         this.loop.stop();
     }
 
+    cleanup() {
+        this.gui.destroy();
+    }
+
     handleResize() {
         if( !this.initialized ) return;
-        this.resizer.resize();
+        this.resizer.resize( [ this.composer ] );
     }
 }
 
 const sketch = new Sketch();
+
+export { Sketch };
 
 export default sketch;

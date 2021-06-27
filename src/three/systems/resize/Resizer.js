@@ -12,7 +12,7 @@ class Resizer {
         this.onResizeCallback = null;
     }
 
-    resize() {
+    resize( additional ) {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
 
@@ -29,6 +29,13 @@ class Resizer {
         
         // Update canvas size
         this.renderer.setSize( newSize.x, newSize.y, false );
+
+        // Update additional objects
+        if( additional ) additional.forEach( object => {
+            if( object && (typeof object.setSize === "function") ) {
+                object.setSize( newSize.x, newSize.y );
+            }
+        });
 
         // Update camera aspect ratio
         this.camera.aspect = newSize.x / newSize.y;

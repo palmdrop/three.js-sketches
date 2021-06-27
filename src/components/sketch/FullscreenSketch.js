@@ -14,6 +14,7 @@ const FullscreenSketch = ( { sketch } ) => {
 
       return () => {
         sketch.stop();
+        sketch.cleanup();
       };
   }, [sketch]);
 
