@@ -29,7 +29,6 @@ const defaultOpts = {
 
 export const toTubeWireframeGeometry = ( geometry, opts = {} ) => {
     opts = Object.assign( defaultOpts, opts );
-    console.log(opts);
 
     const indexAttr = geometry.getIndex();
     const positionAttr = geometry.getAttribute( 'position' );
@@ -82,7 +81,7 @@ export const toTubeWireframeGeometry = ( geometry, opts = {} ) => {
     if( opts.edgeMode !== 'open' ) {
         Object.entries( edges ).map( ( [, edge ] ) => {
             const joint = opts.edgeMode === 'sphere' 
-                ? new THREE.SphereBufferGeometry( opts.radius, opts.radialSegments, opts.tubularSegments)
+                ? new THREE.SphereBufferGeometry( opts.radius * 1.1, opts.radialSegments, opts.tubularSegments)
                 : new THREE.BoxBufferGeometry( opts.radius * 2, opts.radius * 2, opts.radius * 2, opts.radialSegments, opts.radialSegments, opts.radialSegments );
 
             joint.translate( edge.x, edge.y, edge.z );

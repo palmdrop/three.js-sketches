@@ -31,7 +31,10 @@ class AnimationLoop {
     }
 
     start(callback = null) {
+        if( this.running ) return;
+
         if(callback) this.onUpdate(callback);
+        this.running = true;
 
         // Animation callback
         let then = 0;
@@ -57,6 +60,7 @@ class AnimationLoop {
 
     stop() {
         cancelAnimationFrame(this.animationFrameID);
+        this.running = false;
     }
 
     _calculateFrameRate(now) {

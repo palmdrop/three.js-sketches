@@ -5,6 +5,7 @@ import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls
 
 import { AnimationLoop } from '../../systems/loop/AnimationLoop';
 import { Resizer } from '../../systems/resize/Resizer'
+import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
 
 class Sketch {
     constructor() {
@@ -15,6 +16,10 @@ class Sketch {
 
         this.paused = false;
         this.initialized = false;
+        this.loaded = false;
+
+        this.waitForLoad = false;
+        this.shouldStart = false;
     }    
 
     _createRenderer( canvas ) {
@@ -92,6 +97,14 @@ class Sketch {
         this._populateScene();
 
         this.initialized = true;
+
+        ASSETHANDLER.onLoad( null, () => {
+            this.loaded = true;
+            if( this.shouldStart ) {
+                this.start();
+            }
+        });
+
         callback && callback();
     }
 
@@ -110,7 +123,7 @@ class Sketch {
         material.dithering = true;
 
         const cube = new THREE.Mesh( geometry, material );
-        cube.update = ( delta, now ) => {
+        cube.animationUpdate = ( delta, now ) => {
             cube.rotation.x += delta * 0.1;
             cube.rotation.y += -delta * 0.3;
         };
@@ -154,7 +167,11 @@ class Sketch {
     }
 
     start() {
-        if( !this.initialized ) return;
+        //if( !this.initialized ) return;
+        if( !this.initialized || (this.waitForLoad && !this.loaded) ) {
+            this.shouldStart = true;
+            return;
+        }
 
         this.loop.start( ( delta, now ) => {
             this._update( delta, now );            
@@ -168,8 +185,8 @@ class Sketch {
         if( this.paused ) return;
 
         this.scene.traverse( object => {
-            if( typeof object.update === "function" ) {
-                object.update( delta, now );
+            if( typeof object.animationUpdate === "function" ) {
+                object.animationUpdate( delta, now );
             }
         });
 
@@ -184,6 +201,7 @@ class Sketch {
     }
 
     stop() {
+        this.shouldStart = false;
         if( !this.initialized ) return;
         this.loop.stop();
     }

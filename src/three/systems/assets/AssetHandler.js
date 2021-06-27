@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader'
 
 class AssetHandler {
     constructor() {
@@ -7,6 +8,9 @@ class AssetHandler {
 
         this.textureLoader = new THREE.TextureLoader(this.loadManager);
         this.gltfLoader = new GLTFLoader();
+        this.rgbeLoader = new RGBELoader();
+        this.rgbeLoader.setDataType( THREE.UnsignedByteType );
+
 
         // Asset cache
         this.cache = new Map();
@@ -52,10 +56,13 @@ class AssetHandler {
         return asset;
     }
 
-    loadTexture(path, useSRGB) {
+    loadTexture( path, useSRGB, callback ) {
         return this._load(path, (p) => { 
-            const texture = this.textureLoader.load(p, (_) => this._loaded(path));
-            if(useSRGB) texture.encoding = THREE.sRGBEncoding;
+            const texture = this.textureLoader.load(p, texture => {
+                callback && callback( texture );
+                this._loaded( path );
+            });
+            if( useSRGB ) texture.encoding = THREE.sRGBEncoding;
             return texture;
         });
     }
@@ -67,6 +74,18 @@ class AssetHandler {
             this._loaded(path);
 
             return model;
+        });
+    }
+
+    loadHDR( renderer, path, onLoad ) {
+        const pmremGenerator = new THREE.PMREMGenerator( renderer );
+        pmremGenerator.compileCubemapShader();
+
+        return this._load( path, ( p ) => {
+            this.rgbeLoader.load( p, ( texture ) => {
+                const envMap = pmremGenerator.fromEquirectangular( texture ).texture;
+                onLoad( envMap );
+            });
         });
     }
 
