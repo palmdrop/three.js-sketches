@@ -1,3 +1,6 @@
+# THREE.JS SKETCHES
+A personal repository for easily experimenting with three.js and exploring various ideas. Built using `create-react-app` for easy `webpack` setup, and to make it easy to switch between sketches. WIP.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
