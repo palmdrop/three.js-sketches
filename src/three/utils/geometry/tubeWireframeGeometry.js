@@ -80,8 +80,8 @@ export const toTubeWireframeGeometry = ( geometry, opts = {} ) => {
 
     if( opts.edgeMode !== 'open' ) {
         Object.entries( edges ).map( ( [, edge ] ) => {
-            const joint = opts.edgeMode === 'sphere' 
-                ? new THREE.SphereBufferGeometry( opts.radius * 1.1, opts.radialSegments, opts.tubularSegments)
+            const joint = (opts.edgeMode === 'sphere')
+                ? new THREE.SphereBufferGeometry( opts.radius * 1.1, opts.radialSegments, opts.radialSegments )
                 : new THREE.BoxBufferGeometry( opts.radius * 2, opts.radius * 2, opts.radius * 2, opts.radialSegments, opts.radialSegments, opts.radialSegments );
 
             joint.translate( edge.x, edge.y, edge.z );

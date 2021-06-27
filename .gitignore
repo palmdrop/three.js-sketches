@@ -1,4 +1,6 @@
 *.notes
+/images/*
+!/images/example
 
 # dependencies
 /node_modules

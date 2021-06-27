@@ -1,3 +1,4 @@
+// Exteral imports
 import * as THREE from 'three';
 
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -8,29 +9,36 @@ import { SSAARenderPass } from 'three/examples/jsm/postprocessing/SSAARenderPass
 import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass';
 import { TexturePass } from 'three/examples/jsm/postprocessing/TexturePass';
 
+// Internal imports
 import { toTubeWireframeGeometry } from '../../utils/geometry/tubeWireframeGeometry';
-
-import { guiHelpers } from '../../systems/debug/guiHelpers';
-import { Sketch } from '../template/Sketch';
+import { CloudVolume } from '../../components/effects/atmosphere/CloudVolume';
 import { OrbPointLight } from '../../components/light/OrbPointLight';
+
+import { Sketch } from '../template/Sketch';
+import { guiHelpers } from '../../systems/debug/guiHelpers';
+
 import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
 
-import { CloudVolume } from '../../components/effects/atmosphere/CloudVolume';
-
-import diamondtexturePath from '../../../assets/textures/ridges1.png';
+// Assets
 import backgroundTexturePath from '../../../assets/images/woods1.png';
-
 import environmentMapPath from '../../../assets/hdr/trees_night.hdr';
 
+//import diamondtexturePath from '../../../assets/textures/ridges1.png';
+import diamondtexturePath from '../../../assets/textures/warp1.png';
+import orbTexturePath from '../../../assets/textures/ridges1.png';
+
+
 let COLORS = {
-    ambient: 0x112215,
+    ambient: 0x112221,
     sky: 0x665532,
     ground: 0x332211,
 
-    blue: 0x334499,
-    red: 0xa74eb5,
+    blue: 0x4eb5a4,
+    red: 0xa81437,
     yellow: 0x553300,
 
+
+    clouds: 0x9988ff,
     glow: 0xe33463 
 };
 
@@ -54,7 +62,7 @@ class MindSketch extends Sketch {
                 max: 5.0
             },
             threshold: {
-                value: 0.4,
+                value: 0.3,
                 min: 0,
                 max: 1.0,
             },
@@ -90,7 +98,7 @@ class MindSketch extends Sketch {
         composer.addPass( renderPass );
         composer.addPass( ssaaPass );
         composer.addPass( bloomPass );
-        composer.addPass( bokehPass );
+        //composer.addPass( bokehPass );
         //composer.addPass( afterimagePass );
 
         return composer;
@@ -116,14 +124,15 @@ class MindSketch extends Sketch {
             2            // Decay
         );*/
 
+        // TODO convert orb point lights to use billboards
         const point1 = new OrbPointLight({
             color: COLORS.blue,
-            intensity: 22,
+            intensity: 15,
             distance: 10,
             decay: 2,
-            glow: 10.5,
-            segments: 8,
-            radius: 0.05,
+            glow: 2.5,
+            segments: 10,
+            radius: 0.1,
             opacity: 1.0
         });
 
@@ -133,12 +142,12 @@ class MindSketch extends Sketch {
 
         const point2 = new OrbPointLight({
             color: COLORS.red,
-            intensity: 22,
+            intensity: 15,
             distance: 10,
             decay: 2,
             glow: 10.5,
-            segments: 8,
-            radius: 0.05,
+            segments: 10,
+            radius: 0.1,
             opacity: 1.0
         });
 
@@ -147,7 +156,6 @@ class MindSketch extends Sketch {
         guiHelpers.orbPointLight( this.gui, point2, 'point2' );
 
         const lights = new THREE.Group();
-
 
         lights.add( 
             ambient,
@@ -179,10 +187,11 @@ class MindSketch extends Sketch {
         const material = new THREE.MeshStandardMaterial({
             color: 'white',
             metalness: 1.0,
-            roughness: 0.0,
+            roughness: 0.2,
+            roughnessMap: texture,
 
             bumpMap: texture,
-            bumpScale: 0.03,
+            bumpScale: 0.01,
 
             envMap: envMapTarget.texture,
             envMapIntensity: 1.0,
@@ -203,22 +212,26 @@ class MindSketch extends Sketch {
     _createOrb() {
         const geometry = 
              //new THREE.EdgesGeometry(
-                new THREE.SphereBufferGeometry(2.2, 7, 7);
+                new THREE.SphereBufferGeometry(1.8, 6, 6);
                 //10 
             //);
 
-        const texture = ASSETHANDLER.loadTexture( diamondtexturePath );
+        const texture = ASSETHANDLER.loadTexture( orbTexturePath );
 
         const material = new THREE.MeshStandardMaterial({
             color: 'white',
             emissive: COLORS.glow,
-            emissiveIntensity: 2.5,
+
+            //emissiveIntensity: 2.5,
+
+            emissiveIntensity: 5.0,
+            emissiveMap: texture,
 
             metalness: 1.0,
             roughness: 0.0,
 
             bumpMap: texture,
-            bumpScale: 0.00
+            bumpScale: 1
         });
 
         const mesh = new THREE.Mesh(
@@ -226,11 +239,12 @@ class MindSketch extends Sketch {
                 edgeMode: 'sphere',
                 radius: 0.02,
                 tubularSegments: 2,
-                radialSegments: 4,
+                radialSegments: 5,
                 tubeMode: 'visible'
             }),
             material
         );
+        mesh.scale.set(1, 1.4, 1);
 
         const orb = new THREE.Object3D();
         orb.animationUpdate = ( delta, now ) => {
@@ -258,6 +272,8 @@ class MindSketch extends Sketch {
             instanceSize: 10,
 
             textureOpacity: 0.1,
+
+            color: COLORS.clouds,
 
             volume: {
                 x: -5,
