@@ -21,12 +21,11 @@ import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
 
 // Assets
 import backgroundTexturePath from '../../../assets/images/woods1.png';
-import environmentMapPath from '../../../assets/hdr/trees_night.hdr';
+import environmentMapPath from '../../../assets/hdr/trees_night_hq.hdr';
 
 //import diamondtexturePath from '../../../assets/textures/ridges1.png';
 import diamondtexturePath from '../../../assets/textures/warp1.png';
 import orbTexturePath from '../../../assets/textures/ridges1.png';
-
 
 let COLORS = {
     ambient: 0x112221,
@@ -83,7 +82,7 @@ class MindSketch extends Sketch {
 
         const bokehPass = new BokehPass( scene, camera, {
             focus: 0.8,
-            aperture: 0.004,
+            aperture: 0.005,
             maxblur: 1.0
         });
 
