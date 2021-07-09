@@ -2,6 +2,8 @@ import * as THREE from 'three';
 
 import { ASSETHANDLER } from '../../../systems/assets/AssetHandler';
 
+import { randomPointInVolume } from '../../../utils/Utils.js';
+
 import defaultPath from '../../../../assets/images/smoke1.png';
 
 let defaultOpts = {
@@ -28,19 +30,6 @@ let defaultOpts = {
 
     camera: null,
     useSprites: true,
-};
-
-const randomPoint = ( volume ) => {
-    const random = ( start, length ) => {
-        return Math.random() * length + start;
-    }
-
-    return new THREE.Vector3(
-        random( volume.x, volume.w ),
-        random( volume.y, volume.h ),
-        random( volume.z, volume.d ),
-
-    );
 };
 
 export class CloudVolume extends THREE.Group {
@@ -73,7 +62,7 @@ export class CloudVolume extends THREE.Group {
         const material = this._createMaterial( opts );
 
         for( let i = 0; i < opts.instances; i++ ) {
-            const position = randomPoint( opts.volume );
+            const position = randomPointInVolume( opts.volume );
             let cloud;
 
             if( !opts.useSprites && opts.camera ) {
