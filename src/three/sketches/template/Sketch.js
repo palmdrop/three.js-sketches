@@ -213,6 +213,8 @@ class Sketch {
     handleResize() {
         if( !this.initialized ) return;
         this.resizer.resize( [ this.composer ] );
+
+        //if( this.composer ) this.composer.setSize();
     }
 }
 

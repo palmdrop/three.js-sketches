@@ -29,10 +29,10 @@ let defaultOpts = {
     },
 
     mirroredAmount: 0.0,
+    placeEvenly: false,
+    placementVariation: 0.0,
 
-    bumpScale: 0.0,
-    metalness: 0.0,
-    roughness: 1.0,
+    materialOpts: {},
 
     images: null,
 }
@@ -54,18 +54,14 @@ export class ParallaxVolume extends THREE.Group {
         for( let i = 0; i < opts.images.length; i++ ) {
             const texture = ASSETHANDLER.loadTexture( opts.images[ i ] );
 
-            materials[ i ] = new THREE.MeshStandardMaterial( {
-                color: opts.color,
-                map: texture,
-                transparent: true,
-                opacity: opts.opacity,
+            const materialOpts = opts.materialOpts;
+            materialOpts.color = opts.color;
+            materialOpts.map = texture;
+            materialOpts.transparent = true;
+            materialOpts.opacity = opts.transparent;
+            materialOpts.bumpMap = texture;
 
-                metalness: opts.metalness,
-                roughness: opts.roughness,
-
-                bumpMap: texture,
-                bumpScale: opts.bumpScale,
-            });
+            materials[ i ] = new THREE.MeshStandardMaterial( materialOpts );
         }
 
         //TODO on each texture load, create all materials and instances with that material!
@@ -80,6 +76,8 @@ export class ParallaxVolume extends THREE.Group {
         const instanceZOffset = layerZOffset / instancesPerLayer;
         const instanceYVariation = opts.volume.h / opts.layers;
 
+        const averageInstanceXOffset = instancesPerLayer / opts.volume.w;
+
         // Create instances (meshes) for each layer
         for( let layer = 0; layer < opts.layers; layer++ ) {
             const layerY = remap( layer, 0, opts.layers, opts.volume.y, opts.volume.y + opts.volume.h );
@@ -92,7 +90,14 @@ export class ParallaxVolume extends THREE.Group {
                 const mesh = new THREE.Mesh( geometry, material );
 
                 // Set position
-                const x = random( opts.volume.x, opts.volume.x + opts.volume.w );
+                let x;
+                if( opts.placeEvenly ) {
+                    x = remap( i, 0, instancesPerLayer, opts.volume.x, opts.volume.x + opts.volume.w );
+                    x += opts.placementVariation * random( -averageInstanceXOffset / 2, averageInstanceXOffset );
+                } else {
+                    x = random( opts.volume.x, opts.volume.x + opts.volume.w );
+                }
+
                 const y = layerY + random( -instanceYVariation / 2, instanceYVariation / 2 );
                 const z = layerZ + currentOffset;
                 currentOffset += instanceZOffset;
