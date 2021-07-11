@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import { ASSETHANDLER } from '../../../systems/assets/AssetHandler';
 
-import { random, randomPointInVolume, remap } from '../../../utils/Utils';
+import { random, remap } from '../../../utils/Utils';
 
 let defaultOpts = {
     instances: 20,

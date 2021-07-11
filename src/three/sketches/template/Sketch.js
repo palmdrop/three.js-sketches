@@ -103,9 +103,8 @@ class Sketch {
             if( this.shouldStart ) {
                 this.start();
             }
+            callback && callback();
         });
-
-        callback && callback();
     }
 
     _populateScene() {
@@ -180,7 +179,7 @@ class Sketch {
     }
 
     _update( delta, now ) {
-        this.controls.update();
+        if( this.controls ) this.controls.update();
 
         if( this.paused ) return;
 
@@ -213,8 +212,6 @@ class Sketch {
     handleResize() {
         if( !this.initialized ) return;
         this.resizer.resize( [ this.composer ] );
-
-        //if( this.composer ) this.composer.setSize();
     }
 }
 

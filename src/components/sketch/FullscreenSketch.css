@@ -8,4 +8,9 @@
     display: block;
     padding: 0;
     overflow: hidden;
+
+    z-index: -1;
+}
+
+.loaded {
 }

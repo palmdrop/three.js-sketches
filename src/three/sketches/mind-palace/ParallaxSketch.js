@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as TWEEN from '@tweenjs/tween.js';
 import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare';
 
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
@@ -6,51 +7,66 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
 import { SSAARenderPass } from 'three/examples/jsm/postprocessing/SSAARenderPass';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 
+import { Sketch } from '../template/Sketch';
+import { guiHelpers } from '../../systems/debug/guiHelpers';
 
-import { Sketch } from './template/Sketch';
-import { guiHelpers } from './../systems/debug/guiHelpers';
+import { ParallaxVolume } from '../../components/effects/atmosphere/ParallaxVolume';
+import { CloudVolume } from '../../components/effects/atmosphere/CloudVolume';
+import { toTubeWireframeGeometry } from '../../utils/geometry/tubeWireframeGeometry';
 
-import { ParallaxVolume } from '../components/effects/atmosphere/ParallaxVolume';
-import { CloudVolume } from '../components/effects/atmosphere/CloudVolume';
-import { toTubeWireframeGeometry } from '../utils/geometry/tubeWireframeGeometry';
-
-import { ASSETHANDLER } from './../systems/assets/AssetHandler';
+import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
 
 /*import i1 from '../../assets/images/trees/bush1.png';
 import i2 from '../../assets/images/trees/tree1.png';
 import i3 from '../../assets/images/trees/tree2.png';
 import i4 from '../../assets/images/trees/tree3.png';
 */
-import i1 from '../../assets/images/trees/trees1.png';
-import i2 from '../../assets/images/trees/trees2.png';
-import i3 from '../../assets/images/trees/trees3.png';
+import i1 from '../../../assets/images/trees/trees1.png';
+import i2 from '../../../assets/images/trees/trees2.png';
+import i3 from '../../../assets/images/trees/trees3.png';
 
 
-import lensflarePath1 from '../../assets/textures/flares/lensflare0_alpha.png';
-import lensflarePath2 from '../../assets/textures/flares/lensflare3.png';
+import lensflarePath1 from '../../../assets/textures/flares/lensflare0_alpha.png';
+import lensflarePath2 from '../../../assets/textures/flares/lensflare3.png';
 
-import environmentMapPath from '../../assets/hdr/trees_night_hq.hdr';
+import environmentMapPath from '../../../assets/hdr/trees_night_hq.hdr';
 
-import diamondTexturePath from '../../assets/textures/whirl4.png';
-import { GlowMesh } from '../components/effects/glow/GlowMesh';
+import diamondTexturePath from '../../../assets/textures/whirl4.png';
+import { GlowMesh } from '../../components/effects/glow/GlowMesh';
 
 class ParallaxSketch extends Sketch {
     constructor() {
         super();
 
         this.backgroundColor = 0x101305;
+        this.waitForLoad = true;
+        this.tweens = [];
+
+        this.rotationSpeed = 0.1;
+    }
+
+    initialize( canvas, callback ) {
+        super.initialize( canvas, () => {
+
+            this.tweens.forEach( tween => {
+                tween.start();
+            });
+
+            callback && callback();
+        });
     }
 
     _populateScene() {
+        this.controls = null;
         this.renderer.setClearColor('#000000');
         this.renderer.toneMapping = THREE.LinearToneMapping;
 
         this.gui.add( { exposure: 1.0 }, 'exposure', 0.1, 2.0 )
         .onChange( value => { this.renderer.toneMappingExposure = Math.pow( value, 4.0 ) } );
 
-        // Parallax effect
+        // PARALLAX EFFECT
         const parallaxVolume = new ParallaxVolume( {
-            instances: 50,
+            instances: 20,
             instanceScale: 10,
             instanceScaleVariation: 0.2,
             layers: 5,
@@ -87,12 +103,12 @@ class ParallaxSketch extends Sketch {
             },
 
             placeEvenly: true,
-            placementVariation: 0.3,
+            placementVariation: 0.15,
 
             mirroredAmount: 0.5,
         } );
 
-        // Lighting
+        // LIGHTING
         const ambientLight = new THREE.AmbientLight(
             '#ffffff',
             0.2
@@ -107,39 +123,43 @@ class ParallaxSketch extends Sketch {
 
         pointLight.position.set( 0, 0, -2 );
 
-        //this.flareLight = pointLight;
-
         // HDRI
         ASSETHANDLER.loadHDR( this.renderer, environmentMapPath, ( envMap ) => {
             this.scene.background = envMap;
             this.scene.environment = envMap;
         });
 
+        const [ cubeRenderTarget, cubeCamera ] = this._createCubeCamera();
+        this.cubeCamera = cubeCamera;
+
         // ICON
-        this.icon = this._createMindPalaceIcon();
+        this.icon = this._createMindPalaceIcon( cubeRenderTarget );
 
         // Add to scene
         this.scene.add(
             parallaxVolume,
             ambientLight,
             pointLight,
+            cubeCamera,
             this.icon
         );
 
         this._initializeEffects();
 
         this._initializePostprocessing();
+
+        this._initializeAnimation();
     }
 
-    _createMindPalaceIcon() {
-        const diamondRadius = 1.0;
+    _createMindPalaceIcon( environmentMapRenderTarget ) {
+        const diamondRadius = 0.85;
         const diamondStretch = 2.0;
 
         const sphereRadius = 0.15;
 
-        const spacing = 0.2;
+        const spacing = 0.15;
 
-        const sphereColor = '#ffdf9f';
+        const sphereColor = '#ff8f9f';
 
         // Load texture
         const diamondTexture = ASSETHANDLER.loadTexture( diamondTexturePath );
@@ -154,12 +174,14 @@ class ParallaxSketch extends Sketch {
             color: '#ffffff',
 
             bumpMap: diamondTexture,
-            bumpScale: 0.01,
+            bumpScale: 0.02,
 
             roughnessMap: diamondTexture,
 
             roughness: 0.0,
             metalness: 0.5,
+
+            envMap: environmentMapRenderTarget.texture
         });
 
         const diamondMesh = new THREE.Mesh( diamondGeometry, diamondMaterial );
@@ -169,28 +191,22 @@ class ParallaxSketch extends Sketch {
         const diamondBorderGeometry = toTubeWireframeGeometry(
             new THREE.EdgesGeometry( diamondGeometry, 70 ), {
                 edgeMode: 'sphere',
-                radius: 0.02,
+                radius: 0.017,
                 tubularSegments: 1,
                 radialSegments: 15,
                 tubeMode: 'visible'
             }
         );
 
-        const diamondBorderMaterial = new THREE.MeshStandardMaterial( {
-            emissive: '#664433',
-            emissiveIntensity: 2.0,
+        const diamondBorderMaterial = new THREE.MeshBasicMaterial( {
+            //emissive: '#864433',
+            //emissiveIntensity: 1.4,
+            color: '#ffddbb'
         });
 
         const diamondBorder = new THREE.Mesh( diamondBorderGeometry, diamondBorderMaterial );
         diamondBorder.scale.y = 1.5;
 
-        const glow = new GlowMesh( diamondMesh, this.camera, {
-                radius: 0.1,
-                amount: 0.01,
-                softness: 0.8
-            }
-        );
-        //this.scene.add( glow );
 
         const diamond = new THREE.Group();
         diamond.renderOrder = 0;
@@ -199,16 +215,14 @@ class ParallaxSketch extends Sketch {
 
         //diamond.position.set( 0, 0.5, 1 );
 
+        diamond.rotation.y = -Math.PI;
+
         diamond.animationUpdate = ( delta, now ) => {
-            diamond.rotation.y += delta * 0.1;
+            diamond.rotation.y += delta * this.rotationSpeed;
         };
 
-        glow.animationUpdate = ( delta, now ) => {
-            glow.update();
+        this.diamond = diamond;
 
-
-            glow.rotation.y += delta * 0.1;
-        }
 
         // Create sphere
         const sphereGeometry = new THREE.SphereBufferGeometry( sphereRadius, 30, 30 );
@@ -236,7 +250,6 @@ class ParallaxSketch extends Sketch {
 
         const icon = new THREE.Group();
         icon.position.set( 0, 0.5, 1 );
-        glow.position.copy( icon.position );
 
         icon.add( diamond, sphere );
 
@@ -271,6 +284,18 @@ class ParallaxSketch extends Sketch {
         this.scene.add( smoke );
     }
 
+    _createCubeCamera() {
+        const cubeRenderTarget = new THREE.WebGLCubeRenderTarget( 128 * 2, {
+            format: THREE.RGBFormat,
+            generateMipmaps: true,
+            minFilter: THREE.LinearMipMapLinearFilter
+        });
+
+        const cubeCamera = new THREE.CubeCamera( 1, 10000, cubeRenderTarget );
+
+        return [ cubeRenderTarget, cubeCamera ];
+    }
+
     _initializePostprocessing() {
         this.composer = new EffectComposer( this.renderer );
         //this.composer.addPass( new SSAARenderPass( this.scene, this.camera ));
@@ -283,7 +308,7 @@ class ParallaxSketch extends Sketch {
                 max: 5.0
             },
             threshold: {
-                value: 0.3,
+                value: 0.4,
                 min: 0,
                 max: 1.0,
             },
@@ -306,8 +331,72 @@ class ParallaxSketch extends Sketch {
 
     }
 
+    _initializeAnimation() {
+        // Camera tweens
+        {
+            // Pan down (xy) tween
+            const xy = { x: 0.0, y: 7.0 };
+            const intermediateXY = { x: 0.0, y: 1.5 };
+            const finalXY = { x: 0.0, y: 0.5 };
+
+            const time1 = 2300;
+            const time2 = 3000;
+
+            const onUpdateXY = () => {
+                this.camera.position.x = xy.x;
+                this.camera.position.y = xy.y;
+            }
+
+            const xyTween = 
+                // Tween 1 (from start to midpoint)
+                new TWEEN.Tween( xy )
+                .to( intermediateXY, time1 )
+                .easing( TWEEN.Easing.Cubic.In )
+                .onUpdate( onUpdateXY )
+
+                // Tween 2 (from midpoint to end)
+                .chain( new TWEEN.Tween( xy )
+                .to( finalXY, time2 )
+                .easing( TWEEN.Easing.Elastic.Out )
+                .onUpdate( onUpdateXY ));
+
+            // Zoom tween
+            const z = { z: 3 };
+            const finalZ = { z: 5.5 };
+
+            const onUpdateZ = () => {
+                this.camera.position.z = z.z;
+            };
+
+            const zTween = 
+                new TWEEN.Tween( z )
+                .to( finalZ, time1 + time2 )
+                .easing( TWEEN.Easing.Cubic.InOut )
+                .onUpdate( onUpdateZ );
+
+            // Add tweens to tweens array
+            this.tweens.push(
+                xyTween,
+                zTween
+            );
+
+        }
+
+    }
+
     _update( delta, now ) {
         super._update( delta, now );
+        this.cubeCamera.update( this.renderer, this.scene );
+
+        TWEEN.update();
+
+        const rotation = this.diamond.rotation.y;
+        const amountLeft = Math.PI / 4 - rotation;
+        this.rotationSpeed = amountLeft / 2.0;
+
+        if( amountLeft < 0.05 ) {
+            this.done = true;
+        }
     }
 }
 
