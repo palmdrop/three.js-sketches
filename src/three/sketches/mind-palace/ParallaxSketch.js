@@ -27,6 +27,7 @@ import lensflarePath1 from '../../../assets/textures/flares/lensflare0_alpha.png
 import lensflarePath2 from '../../../assets/textures/flares/lensflare3.png';
 
 import environmentMapPath from '../../../assets/hdr/trees_night_hq.hdr';
+//import backgroundTexturePath from '../../../assets/textures/stars/stars2.png';
 import diamondTexturePath from '../../../assets/textures/whirl4.png';
 import transitionTexturePath from '../../../assets/textures/whirl1.png';
 
@@ -53,6 +54,18 @@ class ParallaxSketch extends Sketch {
 
             callback && callback();
         });
+    }
+
+    _createMainLightFlare( color, opacity ) {
+        const mainTextureFlare = ASSETHANDLER.loadTexture( lensflarePath1 );
+        const mainFlareMaterial = new THREE.SpriteMaterial( {
+            color: color,
+            map: mainTextureFlare,
+            transparent: true,
+            opacity: opacity
+        });
+
+        return new THREE.Sprite( mainFlareMaterial );
     }
 
     _populateScene() {
@@ -116,18 +129,24 @@ class ParallaxSketch extends Sketch {
 
         const pointLight = new THREE.PointLight(
             '#99585e',
-            40.0,
+            10.0,
             100,
             1
         );
 
         pointLight.position.set( 0, 0, -2 );
 
-        // HDRI
+        const lightFlare = this._createMainLightFlare( '#ffffff', 0.7 );
+        lightFlare.scale.set( 20, 20, 1 );
+
+        pointLight.add( lightFlare );
+
+        // Background
         ASSETHANDLER.loadHDR( this.renderer, environmentMapPath, ( envMap ) => {
             this.scene.background = envMap;
             this.scene.environment = envMap;
         });
+        //this.scene.background = ASSETHANDLER.loadTexture( backgroundTexturePath );
 
         const [ cubeRenderTarget, cubeCamera ] = this._createCubeCamera();
         this.cubeCamera = cubeCamera;
@@ -274,7 +293,7 @@ class ParallaxSketch extends Sketch {
 
         const sphereMesh = new THREE.Mesh( sphereGeometry, sphereMaterial );
 
-        const sphereLight = new THREE.PointLight( sphereColor, 5, 5, 2 );
+        const sphereLight = new THREE.PointLight( sphereColor, 40, 5, 2 );
         this.flareLight = sphereLight;
 
         const sphere = new THREE.Group();
@@ -310,20 +329,30 @@ class ParallaxSketch extends Sketch {
         const secondaryTextureFlare = ASSETHANDLER.loadTexture( lensflarePath2 );
 
         const lensflare = new Lensflare();
-        lensflare.addElement( new LensflareElement( mainTextureFlare, 800, 0, light.color ) );
+        //lensflare.addElement( new LensflareElement( mainTextureFlare, 800, 0, light.color ) );
         lensflare.addElement( new LensflareElement( secondaryTextureFlare, 80, 0.4 ) );
         lensflare.addElement( new LensflareElement( secondaryTextureFlare, 70, 0.5 ) );
         lensflare.addElement( new LensflareElement( secondaryTextureFlare, 60, 0.8 ) );
 
         light.add( lensflare );
 
+        // Billboard for main light flare effect
+        const lightFlare = this._createMainLightFlare( light.color, 0.6 );
+        lightFlare.scale.set( 3, 3, 1.0 );
+
+        light.add( lightFlare );
+
         // Smoke
         const smoke = new CloudVolume( {
-            textureOpacity: 0.1,
+            textureOpacity: 0.08,
 
             instances: 10,
             instanceSize: 20,
 
+            rotationSpeed: {
+                min: -0.1,
+                max: 0.1
+            },
 
             camera: this.camera,
             useSprites: false,
@@ -357,12 +386,12 @@ class ParallaxSketch extends Sketch {
 
         const bloomParams = {
             strength: {
-                value: 1.0,
+                value: 0.9,
                 min: 0.0,
                 max: 5.0
             },
             threshold: {
-                value: 0.4,
+                value: 0.45,
                 min: 0,
                 max: 1.0,
             },
@@ -438,6 +467,7 @@ class ParallaxSketch extends Sketch {
 
         }
 
+        //this.cubeCamera.update( this.renderer, this.scene );
     }
 
     _render( delta ) {

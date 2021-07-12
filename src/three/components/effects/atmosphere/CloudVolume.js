@@ -84,12 +84,10 @@ export class CloudVolume extends THREE.Group {
                     Math.random() * ( opts.rotationSpeed.max - opts.rotationSpeed.min ) 
                     + opts.rotationSpeed.min;
 
-                if( opts.faceCamera ) {
-                    cloud.animationUpdate = ( delta, now ) => {
-                        cloud.quaternion.copy( opts.camera.quaternion );
-                        cloudMesh.rotation.z += delta * rotationSpeed;
-                    };
-                }
+                cloud.animationUpdate = ( delta, now ) => {
+                    if( opts.faceCamera ) cloud.quaternion.copy( opts.camera.quaternion );
+                    cloudMesh.rotation.z += delta * rotationSpeed;
+                };
             } else {
                 cloud = new THREE.Sprite( material );
                 cloud.scale.set( opts.instanceSize, opts.instanceSize, 1 );
