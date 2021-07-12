@@ -20,3 +20,12 @@ export const remap = ( value, min, max, newMin, newMax ) => {
     const normalized = ( value - min ) / ( max - min )
     return normalized * ( newMax - newMin ) + newMin;
 };
+
+export const forEachChild = ( object, operation ) => {
+    if( !object.children ) return;
+
+    object.children.forEach( ( child ) => {
+        operation( child );
+        forEachChild( child, operation );
+    });
+}

@@ -20,13 +20,16 @@ class Sketch {
 
         this.waitForLoad = false;
         this.shouldStart = false;
+
+        this.updateables = [];
     }    
 
     _createRenderer( canvas ) {
         const renderer = new THREE.WebGLRenderer({
             canvas: canvas,
-            antialias: true,
-            powerPreference: 'high-performance'
+            antialias: false,
+            powerPreference: 'high-performance',
+            alpha: true
         });
 
         // SHADOWS
@@ -104,6 +107,13 @@ class Sketch {
                 this.start();
             }
             callback && callback();
+        });
+
+
+        this.scene.traverse( object => {
+            if( typeof object.animationUpdate === "function" ) {
+                this.updateables.push( object );
+            }
         });
     }
 
@@ -183,10 +193,13 @@ class Sketch {
 
         if( this.paused ) return;
 
-        this.scene.traverse( object => {
+        /*this.scene.traverse( object => {
             if( typeof object.animationUpdate === "function" ) {
                 object.animationUpdate( delta, now );
             }
+        });*/
+        this.updateables.forEach( object => {
+            object.animationUpdate( delta, now );
         });
 
     }

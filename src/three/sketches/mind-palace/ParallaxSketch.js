@@ -14,25 +14,21 @@ import { ParallaxVolume } from '../../components/effects/atmosphere/ParallaxVolu
 import { CloudVolume } from '../../components/effects/atmosphere/CloudVolume';
 import { toTubeWireframeGeometry } from '../../utils/geometry/tubeWireframeGeometry';
 
-import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
+import { TransitionRender } from '../../components/effects/transition/TransitionRender';
 
-/*import i1 from '../../assets/images/trees/bush1.png';
-import i2 from '../../assets/images/trees/tree1.png';
-import i3 from '../../assets/images/trees/tree2.png';
-import i4 from '../../assets/images/trees/tree3.png';
-*/
+import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
+import { forEachChild } from '../../utils/Utils';
+
 import i1 from '../../../assets/images/trees/trees1.png';
 import i2 from '../../../assets/images/trees/trees2.png';
 import i3 from '../../../assets/images/trees/trees3.png';
-
 
 import lensflarePath1 from '../../../assets/textures/flares/lensflare0_alpha.png';
 import lensflarePath2 from '../../../assets/textures/flares/lensflare3.png';
 
 import environmentMapPath from '../../../assets/hdr/trees_night_hq.hdr';
-
 import diamondTexturePath from '../../../assets/textures/whirl4.png';
-import { GlowMesh } from '../../components/effects/glow/GlowMesh';
+import transitionTexturePath from '../../../assets/textures/whirl1.png';
 
 class ParallaxSketch extends Sketch {
     constructor() {
@@ -43,6 +39,9 @@ class ParallaxSketch extends Sketch {
         this.tweens = [];
 
         this.rotationSpeed = 0.1;
+
+        this.transitionMix = 0.0;
+        this.transitionThreshold = 0.1;
     }
 
     initialize( canvas, callback ) {
@@ -60,6 +59,7 @@ class ParallaxSketch extends Sketch {
         this.controls = null;
         this.renderer.setClearColor('#000000');
         this.renderer.toneMapping = THREE.LinearToneMapping;
+        this.renderer.antialias = false;
 
         this.gui.add( { exposure: 1.0 }, 'exposure', 0.1, 2.0 )
         .onChange( value => { this.renderer.toneMappingExposure = Math.pow( value, 4.0 ) } );
@@ -144,11 +144,50 @@ class ParallaxSketch extends Sketch {
             this.icon
         );
 
+        this._createSimpleRender();
+
         this._initializeEffects();
 
         this._initializePostprocessing();
 
         this._initializeAnimation();
+
+        this.transitionRender = new TransitionRender( 
+            //this.shaderRender.renderTarget.texture, 
+            this.simpleRenderTarget.texture,
+            this.renderTarget.texture, 
+            ASSETHANDLER.loadTexture( transitionTexturePath ),
+            this.transitionThreshold,
+            this.renderer
+        );
+
+        this.gui.add( this, 'transitionMix', 0.0, 1.0 );
+        this.gui.add( this, 'transitionThreshold', 0.0, 1.0 )
+        .onChange( () => {
+            this.transitionRender.quadMaterial.uniforms[ 'threshold' ].value = this.transitionThreshold;
+        });
+
+    }
+
+    _createSimpleRender() {
+        const simpleScene = new THREE.Scene();
+        simpleScene.background = new THREE.Color( '#113025')
+        const icon = this.simpleIcon;
+
+        const material = new THREE.MeshBasicMaterial( {
+            color: '#012015'
+        });
+
+        forEachChild( icon, ( child ) => {
+            if( child.material ) child.material = material;
+        });
+
+        simpleScene.add( icon );
+
+        this.simpleScene = simpleScene;
+
+        //const shaderRender = new ShaderRender( this.renderer, basicScene, this.camera, FadeOutShader );
+        this.simpleRenderTarget = new THREE.WebGLRenderTarget( this.canvas.clientWidth, this.canvas.clientHeight );
     }
 
     _createMindPalaceIcon( environmentMapRenderTarget ) {
@@ -223,7 +262,6 @@ class ParallaxSketch extends Sketch {
 
         this.diamond = diamond;
 
-
         // Create sphere
         const sphereGeometry = new THREE.SphereBufferGeometry( sphereRadius, 30, 30 );
         const sphereMaterial = new THREE.MeshStandardMaterial( {
@@ -253,6 +291,14 @@ class ParallaxSketch extends Sketch {
 
         icon.add( diamond, sphere );
 
+        this.simpleIcon = new THREE.Group();
+        this.simpleIcon.position.copy( icon.position );
+        this.simpleIcon.add( diamondMesh.clone(), sphere.clone( true ) );
+        this.simpleIcon.rotation.y = Math.PI / 4;
+        /*this.simpleIcon.animationUpdate = ( delta, now ) => {
+            this.simpleIcon.rotation.y += delta * this.rotationSpeed;
+        };*/
+
         return icon;
     }
 
@@ -273,10 +319,15 @@ class ParallaxSketch extends Sketch {
 
         // Smoke
         const smoke = new CloudVolume( {
-            textureOpacity: 0.05,
+            textureOpacity: 0.1,
+
+            instances: 10,
+            instanceSize: 20,
+
 
             camera: this.camera,
             useSprites: false,
+            faceCamera: false,
         });
 
         smoke.position.set( 0, 2, 1 );
@@ -297,9 +348,12 @@ class ParallaxSketch extends Sketch {
     }
 
     _initializePostprocessing() {
-        this.composer = new EffectComposer( this.renderer );
-        //this.composer.addPass( new SSAARenderPass( this.scene, this.camera ));
-        this.composer.addPass( new RenderPass( this.scene, this.camera ));
+        this.renderTarget = new THREE.WebGLRenderTarget( this.canvas.clientWidth, this.canvas.clientHeight, {
+        });
+
+        this.composer = new EffectComposer( this.renderer, this.renderTarget );
+        this.composer.addPass( new SSAARenderPass( this.scene, this.camera ));
+        //this.composer.addPass( new RenderPass( this.scene, this.camera ));
 
         const bloomParams = {
             strength: {
@@ -328,6 +382,8 @@ class ParallaxSketch extends Sketch {
         guiHelpers.arbitraryObject( this.gui, bloomParams, bloomPass, 'bloom' );
 
         this.composer.addPass( bloomPass );
+
+        this.composer.renderToScreen = false;
 
     }
 
@@ -384,6 +440,17 @@ class ParallaxSketch extends Sketch {
 
     }
 
+    _render( delta ) {
+        super._render( delta );
+        this.renderer.setRenderTarget( this.simpleRenderTarget );
+        this.renderer.render( this.simpleScene, this.camera );
+
+        this.composer.swapBuffers();
+
+        this.renderer.setRenderTarget( null );
+        this.transitionRender.render( this.transitionMix );
+    }
+
     _update( delta, now ) {
         super._update( delta, now );
         this.cubeCamera.update( this.renderer, this.scene );
@@ -397,6 +464,11 @@ class ParallaxSketch extends Sketch {
         if( amountLeft < 0.05 ) {
             this.done = true;
         }
+    }
+
+    handleResize() {
+        if( !this.initialized ) return;
+        this.resizer.resize( [ this.composer, this.simpleRenderTarget, this.transitionRender ] );
     }
 }
 
