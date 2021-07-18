@@ -38,7 +38,7 @@ const FullscreenSketch = ( { sketch } ) => {
     <div 
       className="sketch"
     >
-      { !transitionDone
+      { /*!transitionDone
       ? <LoadingPage 
           loaded={loaded}
           fadeOutTime={1800}
@@ -46,7 +46,7 @@ const FullscreenSketch = ( { sketch } ) => {
             setTransitionDone(true);
           }}
         /> 
-      : null }
+        : null */}
       <canvas 
         className={"canvas" + (transitionDone ? " loaded" : "")}
         key={"canvas"} 

@@ -27,6 +27,7 @@ import lensflarePath1 from '../../../assets/textures/flares/lensflare0_alpha.png
 import lensflarePath2 from '../../../assets/textures/flares/lensflare3.png';
 
 import environmentMapPath from '../../../assets/hdr/trees_night_hq.hdr';
+//import environmentMapPath from '../../../assets/hdr/night2.hdr';
 //import backgroundTexturePath from '../../../assets/textures/stars/stars2.png';
 import diamondTexturePath from '../../../assets/textures/whirl4.png';
 import transitionTexturePath from '../../../assets/textures/whirl1.png';
@@ -276,6 +277,14 @@ class ParallaxSketch extends Sketch {
         diamond.rotation.y = -Math.PI;
 
         diamond.animationUpdate = ( delta, now ) => {
+            const rotation = this.diamond.rotation.y;
+            const amountLeft = Math.PI / 4 - rotation;
+            this.rotationSpeed = amountLeft / 2.0;
+
+            if( amountLeft < 0.05 ) {
+                this.done = true;
+            }
+
             diamond.rotation.y += delta * this.rotationSpeed;
         };
 
@@ -344,7 +353,7 @@ class ParallaxSketch extends Sketch {
 
         // Smoke
         const smoke = new CloudVolume( {
-            textureOpacity: 0.08,
+            textureOpacity: 0.1,
 
             instances: 10,
             instanceSize: 20,
@@ -391,7 +400,7 @@ class ParallaxSketch extends Sketch {
                 max: 5.0
             },
             threshold: {
-                value: 0.45,
+                value: 0.4,
                 min: 0,
                 max: 1.0,
             },
@@ -487,13 +496,6 @@ class ParallaxSketch extends Sketch {
 
         TWEEN.update();
 
-        const rotation = this.diamond.rotation.y;
-        const amountLeft = Math.PI / 4 - rotation;
-        this.rotationSpeed = amountLeft / 2.0;
-
-        if( amountLeft < 0.05 ) {
-            this.done = true;
-        }
     }
 
     handleResize() {

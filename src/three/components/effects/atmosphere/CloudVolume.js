@@ -36,6 +36,8 @@ let defaultOpts = {
 
 export class CloudVolume extends THREE.Group {
     _createMaterial( opts ) {
+        opts = Object.assign( defaultOpts, opts );
+
         const texture = ASSETHANDLER.loadTexture( opts.texturePath );
 
         let material;
