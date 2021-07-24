@@ -1,16 +1,20 @@
 import * as THREE from 'three';
-import { PointVolume } from '../../components/generation/points/PointVolume';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
+import { SSAARenderPass } from 'three/examples/jsm/postprocessing/SSAARenderPass';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
+
+import { makeNoise3D } from 'fast-simplex-noise';
 
 import { Sketch } from "../template/Sketch";
 
-import { makeNoise3D } from 'fast-simplex-noise';
+import { PointVolume } from '../../components/generation/points/PointVolume';
+import { SpaceColonizationTree } from '../../components/generation/space-colonization/SpaceColonizationTree';
+import { random, randomUnitVector3, remap } from '../../utils/Utils';
+
 import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
 
 import circleTexturePath from '../../../assets/sprites/circle.png';
-import { SpaceColonizationTree } from '../../components/generation/space-colonization/SpaceColonizationTree';
-import { Octree, OctreeHelper } from '../../utils/tree/Octree';
-import { random } from '../../utils/Utils';
-
 import treeTexturePath from '../../../assets/textures/ridges1.png';
 
 class WebEntitySketch extends Sketch {
@@ -18,7 +22,34 @@ class WebEntitySketch extends Sketch {
         super();
     }
 
+    _createRenderer( canvas ) {
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            antialias: false,
+            powerPreference: 'high-performance',
+            alpha: true,
+            preserveDrawingBuffer: true
+        });
+
+        // SHADOWS
+        //renderer.shadowMap.enabled = true;
+        //renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // COLOR AND LIGHTING
+        if( this.useSRGB ) renderer.outputEncoding = THREE.sRGBEncoding;
+
+        // enable the physically correct lighting model
+        renderer.physicallyCorrectLights = true;
+
+        renderer.autoClearColor = false;
+        //renderer.autoClearDepth = false;
+
+        return renderer;
+    }
+
     _populateScene() {
+        this._initializePostprocessing();
+
         const noise = makeNoise3D();
 
         const pointVolume = new PointVolume( {
@@ -28,7 +59,6 @@ class WebEntitySketch extends Sketch {
             generationMethod: 'function',
             threshold: 0.3,
             probabilityFunction: ( point ) => {
-                //return ( Math.sin( point.x * 3 ) + 1.0 ) / 2.0;
                 return noise( 0.2 * point.x, 0.2 * point.y, 0.2 * point.z );
             }
         })
@@ -50,77 +80,111 @@ class WebEntitySketch extends Sketch {
                 map: ASSETHANDLER.loadTexture( circleTexturePath ),
                 color: 'white',
             });
-            //const pointMesh = new THREE.Mesh( geometry, material );
             const pointSprite = new THREE.Sprite( material );
             pointSprite.position.copy( point );
             pointSprite.scale.set( 0.2, 0.2, 1.0 );
-            //pointSprite.scale.set( 0.0, 0.0, 1.0 );
 
             data.push( pointSprite );
             points.add( pointSprite );
         });
         this.scene.add( points );
 
-        //const tree = new SpaceColonizationTree( pointVolume.volume, pointVolume.points );
+        //this.scene.fog = null;
 
-        /*const octree = new Octree( pointVolume.volume, 8, 3 );
-        octree.insertAll( pointVolume.points, data );
+        //const directionalLight = new THREE.DirectionalLight( 'white', 5 );
+        //directionalLight.position.set( 0, 10, 10 );
+        for( let i = 0; i < 3; i++ ) {
+            const pointLight = new THREE.PointLight( 
+                new THREE.Color().setHSL(
+                    Math.random(),
+                    0.3,
+                    0.5
+                ),
+                20, 20, 2 
+            );
 
-        const octreeHelper = new OctreeHelper( octree );
-        this.scene.add( octreeHelper );
+            pointLight.position.set( 
+                random(-3, 3),
+                random(-3, 3),
+                random(-3, 3),
+            );
+            this.scene.add( pointLight );
+        }
 
-        const sphere = { center: new THREE.Vector3( random(-2, 2), random(-2, 2), random(-2, 2) ), radius: random(1, 4) };
-
-        entries.forEach( ( { point, data } ) => {
-            data.material.color.set(0xff0000);
-            //data.scale.set( 0.2, 0.2, 1.0 );
-        });
-
-        const sphereMesh = new THREE.Mesh(
-            new THREE.SphereBufferGeometry( sphere.radius, 10, 10 ),
-            new THREE.MeshBasicMaterial( { color: 'green' })
-        );
-        sphereMesh.material.wireframe = true;
-        sphereMesh.position.copy( sphere.center );
-
-        this.scene.add( sphereMesh );*/
-
-        this.scene.fog = new THREE.Fog( this.backgroundColor, 0.1, 15.0 );
-
-        const directionalLight = new THREE.DirectionalLight( 'white', 5 );
-        directionalLight.position.set( 0, 10, 10 );
-        this.scene.add( directionalLight );
 
         const tree = new SpaceColonizationTree( 
-            0.3, // Min dist
-            2,   // Max dist
-            0.8, // Dynamics
-            0.1, // Step size
-            0.01  // Random deviation
+            0.2, // Min dist
+            3,   // Max dist
+            0.7, // Dynamics
+            0.10, // Step size
+            0.00  // Random deviation
         );
 
         tree.generate( 
             pointVolume.points, 
             pointVolume.volume, 
             new THREE.Vector3(), 
-            new THREE.Vector3(0, 1, 0),
+            randomUnitVector3(),
             200
+        );
+
+        tree.toSkeleton(
+            ( child, maxDepth ) => {
+                return 1.3 * Math.PI * Math.pow( remap( child.reverseDepth, 1, maxDepth, 0, 1.0), 1.0 );
+            }
         );
 
         const treeObject = new THREE.Object3D();
         const treeMaterial = new THREE.MeshStandardMaterial( { 
-            color: 'brown',
+            color: '#664423',
 
-            //map: ASSETHANDLER.loadTexture( treeTexturePath ),
-            //bumpMap: ASSETHANDLER.loadTexture( treeTexturePath ),
-            bumpScale: 0.1,
+            bumpMap: ASSETHANDLER.loadTexture( treeTexturePath ),
+            bumpScale: 0.01,
 
-            metalness: 0.0,
-            roughness: 0.8
+            metalness: 0.5,
+            roughness: 0.0
         });
-        const treeSegmentGeometry = new THREE.BoxBufferGeometry( 1, 1, 1 );
 
-        this.scene.add( tree.buildThreeObject( treeMaterial, 0.2 ) );
+        this.scene.add( tree.buildThreeObject( treeMaterial, 0.1 ) );
+
+        this.gui.destroy();
+    }
+
+    _initializePostprocessing() {
+        this.composer = new EffectComposer( this.renderer );
+        //this.composer.addPass( new SSAARenderPass( this.scene, this.camera ));
+        this.composer.addPass( new RenderPass( this.scene, this.camera ) );
+
+        const bloomParams = {
+            strength: {
+                value: 1.9,
+                min: 0.0,
+                max: 5.0
+            },
+            threshold: {
+                value: 0.4,
+                min: 0,
+                max: 1.0,
+            },
+            radius: {
+                value: 0,
+                min: 0,
+                max: 1
+            }
+        };
+
+        const bloomPass = new UnrealBloomPass( new THREE.Vector2( this.canvas.clientWidth, this.canvas.clientHeight ), 
+            bloomParams.strength.value,
+            bloomParams.radius.value,
+            bloomParams.threshold.value,
+        );
+
+        //guiHelpers.arbitraryObject( this.gui, bloomParams, bloomPass, 'bloom' );
+
+        this.composer.addPass( bloomPass );
+
+        //this.composer.renderToScreen = false;
+        this.composer.renderToScreen = true;
     }
 }
 

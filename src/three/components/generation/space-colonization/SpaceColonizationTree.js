@@ -222,9 +222,53 @@ export class SpaceColonizationTree {
     }
 
     toSkeleton( threshold ) {
-        // TODO use threshold to determine if a "joint" should exist, i.e if the angle(dot?) between to adjacent directions exceeds the
-        // TODO threshold, then keep the segment, and create a "joint"
+        this.calculateDepths();
 
+        if( typeof threshold !== "function" ) threshold = () => threshold;
+
+        const convert = ( segment ) => {
+            let current = segment;
+
+            //TODO what to do if segment has multiple children at start?
+
+            if( current.children.length === 0 ) return;
+
+            if( current.children.length > 1 ) {
+                current.children.forEach( child => {
+                    convert( child );
+                });
+
+                return;
+            }
+
+            while( current.children.length === 1 ) {
+                const child = current.children[ 0 ];
+
+                const dotDirection = current.direction.dot( child.direction );
+                const angle = remap( dotDirection, -1, 1, Math.PI * 2, 0 );
+
+                const t = threshold( child, this.maxDepth );
+
+                if( angle > t ) {
+                    segment.position = current.position;
+                    segment.direction = current.direction;
+                    segment.children = current.children;
+
+                    convert( child );
+                    return;
+                }
+                current = child;
+            }
+
+            //segment.children = [ current ];
+            segment.position = current.position;
+            segment.direction = current.direction;
+            segment.children = current.children;
+
+            convert( segment );
+        }
+
+        convert( this.root );
         
     }
 
@@ -262,37 +306,13 @@ export class SpaceColonizationTree {
             segmentObject.animationUpdate = ( delta, now ) => {
                 //segmentObject.rotation.x += delta * 0.01;
                 //TODO rotate around parents directions, and adjust angle! 
+                //segmentObject.rotateOnAxis( parent.direction, now * 0.001 );
             };
 
             parent.object.add( segmentObject );
 
             segment.object = segmentObject;
         });
-
-        /*this.traverse( ( segment, parent ) => {
-            if( !parent ) {
-                this.root.object = treeObject;
-                this.root.relativeDirection = this.root.direction;
-                this.root.length = 0;
-                return;
-            }
-
-            const relativeDirection = new Vector3().subVectors( segment.direction, parent.relativeDirection );
-
-            const relativePosition = new Vector3().subVectors( segment.origin, parent.origin );
-            const length = relativePosition.length();
-            const direction = new Vector3().copy( relativePosition ).normalize();
-
-            const segmentMesh = new THREE.Mesh( geometry, material );
-            //segmentMesh.position.copy( relativePosition );
-            segmentMesh.lookAt( direction );
-            segmentMesh.position.set( 0, 0, length );
-
-            parent.object.add( segmentMesh );
-
-            segment.object = segmentMesh;
-            segment.relativeDirection = relativeDirection;
-        });*/
 
         return treeObject;
     }
