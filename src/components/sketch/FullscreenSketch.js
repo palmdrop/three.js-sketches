@@ -10,6 +10,26 @@ const FullscreenSketch = ( { sketch } ) => {
   const [loaded, setLoaded] = useState(false);
   const [transitionDone, setTransitionDone] = useState(false);
 
+  const registerListeners = () => {
+    const onKeyPressed = event => {
+      switch(event.key) {
+        case 'c': {
+          sketch.captureFrame(dataURL => {
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = "sketch";
+            link.click(); 
+          });
+        }
+      }
+
+      console.log(event.key);
+
+    };
+
+    window.addEventListener("keydown", onKeyPressed);
+  };
+
   useEffect(() => {
       if(!sketch.initialized) {
           sketch.initialize(canvasRef.current, () => {
@@ -18,6 +38,8 @@ const FullscreenSketch = ( { sketch } ) => {
       }
 
       sketch.start();
+
+      registerListeners();
 
       return () => {
         sketch.stop();

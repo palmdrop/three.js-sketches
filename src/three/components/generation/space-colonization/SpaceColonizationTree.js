@@ -260,7 +260,6 @@ export class SpaceColonizationTree {
                 current = child;
             }
 
-            //segment.children = [ current ];
             segment.position = current.position;
             segment.direction = current.direction;
             segment.children = current.children;
@@ -272,13 +271,13 @@ export class SpaceColonizationTree {
         
     }
 
-    buildThreeObject( material, protrude = 0.0 ) {
+    buildThreeObject( material, minWidth = 0.01, maxWidth = 0.2, protrude = 0.0, detail = 5.0 ) {
         this.calculateDepths();
 
         const treeObject = new THREE.Object3D();
 
         //const geometry = new THREE.BoxBufferGeometry( 1.0, 1.0, 1.0 );
-        const geometry = new THREE.CylinderGeometry( 1.0, 1.0, 1.0, 5.0 );
+        const geometry = new THREE.CylinderGeometry( 1.0, 1.0, 1.0, detail );
 
         geometry.applyMatrix4( new THREE.Matrix4().makeRotationX( Math.PI / 2 ));
 
@@ -297,7 +296,7 @@ export class SpaceColonizationTree {
             segmentMesh.lookAt( relativePosition );
             segmentMesh.position.copy( relativePosition ).divideScalar( -2.0 );
 
-            const width = remap( segment.reverseDepth, this.maxDepth, 1, 0.2, 0.01 );
+            const width = remap( segment.reverseDepth, this.maxDepth, 1, maxWidth, minWidth );
             segmentMesh.scale.set( width, width, ( 1.0 + protrude ) * length );
 
             segmentObject.position.copy( relativePosition );

@@ -22,6 +22,9 @@ class Sketch {
         this.shouldStart = false;
 
         this.updateables = [];
+
+        this.captureNextFrame = false;
+        this.dataCallback = null;
     }    
 
     _createRenderer( canvas ) {
@@ -210,6 +213,13 @@ class Sketch {
         } else {
             this.renderer.render( this.scene, this.camera );
         }
+
+        if( this.captureNextFrame ) {
+            this.captureNextFrame = false;
+            this.dataCallback(
+                this.canvas.toDataURL("image/png")
+            );
+        }
     }
 
     stop() {
@@ -225,6 +235,11 @@ class Sketch {
     handleResize() {
         if( !this.initialized ) return;
         this.resizer.resize( [ this.composer ] );
+    }
+
+    captureFrame( dataCallback ) {
+        this.captureNextFrame = true;
+        this.dataCallback = dataCallback;
     }
 }
 
