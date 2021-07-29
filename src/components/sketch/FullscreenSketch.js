@@ -48,7 +48,9 @@ const FullscreenSketch = ( { sketch } ) => {
   }, [sketch]);
 
   useLayoutEffect(() => {
-    const handleResize = () => sketch.handleResize();
+    const handleResize = () => {
+      sketch.handleResize();
+    }
 
     window.addEventListener("resize", handleResize);
     handleResize();
