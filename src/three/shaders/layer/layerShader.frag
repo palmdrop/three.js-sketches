@@ -8,6 +8,7 @@ varying vec2 vUv;
 
 // Time
 uniform float time;
+uniform vec3 timeOffset;
 
 // Dimensions
 uniform vec2 size;
@@ -15,8 +16,11 @@ uniform vec3 offset;
 uniform float z;
 
 // Noise
-uniform float frequency;
+uniform vec3 frequency;
 uniform float power;
+
+// Warp
+uniform float warpAmount;
 
 // Color
 uniform vec4 color1;
@@ -28,15 +32,42 @@ uniform bool hasDitheringTexture;
 uniform highp sampler2D ditheringTexture;
 uniform vec2 ditheringTextureDimensions;
 
+uniform float staticAmount;
 
-
-float getNoise( vec3 position, float frequency, float amplitude, vec3 offset ) {
+float getNoise( vec3 position, vec3 frequency, float amplitude, vec3 offset ) {
     vec3 samplePosition = position * frequency + offset;
 
     float result = simplex3d( samplePosition );
     result = 0.5 + result / 2.0;
 
     return amplitude * result;
+}
+
+vec3 polarWarp( vec3 point, float xOffset, float yOffset, float zOffset, float amount ) {
+    vec3 xo = vec3( xOffset, 0, 0 );
+    vec3 yo = vec3( 0, yOffset, 0 );
+    vec3 zo = vec3( 0, 0, zOffset );
+
+    return point + amount * vec3(
+        xOffset * getNoise( point, frequency, 1.0, xo ),
+        yOffset * getNoise( point, frequency, 1.0, yo ),
+        zOffset * getNoise( point, frequency, 1.0, zo )
+    );
+}
+
+
+float getValue( vec3 position, vec3 offset ) {
+    if( warpAmount > 0.0 ) {
+        position = polarWarp( 
+            position,
+            10.0, 10.0, 10.0,
+            warpAmount
+        );
+    }
+
+    return getNoise( position, frequency, 1.0, 
+        offset
+    );
 }
 
 float random(vec2 co){
@@ -61,8 +92,8 @@ vec3 dither( vec3 value ) {
 void main() {
     //vec4 texel = texture2D( tDiffuse, vUv );
     vec2 position = vUv * size;
-    float n = getNoise( vec3( position.xy, z ), frequency, 1.0, offset );
 
+    float n = getValue( vec3( position, z ), offset + time * timeOffset );
 
     float threshold = 1.0;
 
@@ -71,17 +102,14 @@ void main() {
         n = threshold - ( n - threshold );
     }
 
-    float uniformNoiseFactor = 0.1;
-    n += uniformNoiseFactor * random( position + vec2( z + 112.3 * time, z - 34.1 * time ) ) - uniformNoiseFactor / 2.0;
+    n += staticAmount * random( position + vec2( z + 112.3 * time, z - 34.1 * time ) ) - staticAmount / 2.0;
 
     vec4 color = mix( color1, color2, n );
 
     color = vec4(
         dither( color.rgb ).rgb,
-        //color.rgb,
         color.a
     );
 
-    //vec4 color = vec4( 1.0, 1.0, 1.0, n );
     gl_FragColor = opacity * color;
 }

@@ -112,7 +112,10 @@ class Sketch {
             callback && callback();
         });
 
+        this._detectUpdatables();
+    }
 
+    _detectUpdatables() {
         this.scene.traverse( object => {
             if( typeof object.animationUpdate === "function" ) {
                 this.updateables.push( object );

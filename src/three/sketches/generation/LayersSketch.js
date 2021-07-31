@@ -1,11 +1,10 @@
 import * as THREE from 'three';
-import { Vector4 } from 'three';
-import { LayerShader } from '../../shaders/layer/LayerShader';
-import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
 
 import { Sketch } from "../template/Sketch";
 
-import ditheringTexturePath from '../../../assets/noise/blue/LDR_RGBA_7.png';
+import { LayeredNoiseBox } from '../../components/layers/LayeredNoiseBox';
+
+import { random, remap } from '../../utils/Utils';
 
 class LayersSketch extends Sketch {
 
@@ -14,7 +13,7 @@ class LayersSketch extends Sketch {
 
         this.backgroundColor = new THREE.Color( 0x000000 );
 
-        this.far = 1000;
+        this.far = 100000;
     }
 
     _createRenderer( canvas ) {
@@ -39,87 +38,120 @@ class LayersSketch extends Sketch {
     };
 
     _populateScene() {
+        //TODO render simple background, noise + color
+
         //TODO experiment with different blending function
         //TODO expose all relevant parameters to gui
         //TODO create object/class for cube thingy
+        // TODO apply interesting warps, extreme "wobble" effects, etc
+        const layeredNoiseBox = new LayeredNoiseBox( {
+            width: 200,
+            height: 200,
+            depth: 200,
 
-        const planeGeometry = new THREE.PlaneBufferGeometry( 1, 1 );
+            offset: new THREE.Vector3( 0, 0, 0 ),
 
-        const planeMaterial = new THREE.ShaderMaterial( 
-            LayerShader
-        );
+            frequency: ( layer ) => {
+                const frequency = new THREE.Vector3( 0.01, 0.01, 0.001 )
+                frequency.multiplyScalar( 1.0 + layer * 0.1 );
+                return frequency;
+            },
 
+            timeOffset: new THREE.Vector3( 0.0, 0.0, 0.5 ),
 
-        const size = 400;
-        const planeWidth = size;
-        const planeHeight = size;
+            numberOfLayers: 100,
 
-        const numberOfPlanes = 10;
-        const planeOffsets = size / numberOfPlanes;
+            power: 5,
 
-        const xyFrequency = 0.01;
-        const zFrequency = 0.3;
-        const zStart = -( numberOfPlanes * planeOffsets ) / 2;
+            opacity: 0.5,
 
-        this.camera.position.z = -zStart - 1.0;
+            ditheringAmount: 0.1,
+            staticAmount: 0.0,
+            
+        }, () => {
+            this._detectUpdatables();
+        });
 
-        const randomVectorColor = ( alpha ) => {
-            const color = new THREE.Color().setHSL(
-                Math.random(),
-                1.0 * Math.random(),
-                Math.random() * 0.4 + 0.3
-            );
+        const noiseBox = this.gui.addFolder( 'Noise box' );
 
-            return new Vector4(
-                color.r,
-                color.g,
-                color.b,
-                alpha
+        const createRangeHelper = ( parent, uniform, range, min, max, updateFunction ) => {
+            const folder = parent.addFolder( uniform );
+
+            const onChange = () => {
+                layeredNoiseBox.setMaterialUniform( uniform, updateFunction );
+            };
+
+            folder.add( range, 'min', min, max, 0.001 )
+            .onChange( onChange );
+
+            folder.add( range, 'max', min, max, 0.001 )
+            .onChange( onChange );
+
+            return folder;
+        };
+
+        // Frequency helper
+        const scale = new THREE.Vector3( 1.0, 1.0, 0.1 );
+        const frequencyRange = { min: 0.01, max: 0.1 };
+        const updateFrequency = ( layer ) => {
+            return scale.clone().multiplyScalar( 
+                remap( layer, 0, layeredNoiseBox.layerPlanes.length, frequencyRange.min, frequencyRange.max ) 
             );
         };
 
-        for( let i = 0; i < numberOfPlanes; i++ ) {
-            const material = planeMaterial.clone();
+        const frequencyFolder = createRangeHelper( noiseBox, 'frequency', frequencyRange, 0.0, 1.0, updateFrequency );
 
-            material.blending = THREE.AdditiveBlending;
-            material.side = THREE.DoubleSide;
+        frequencyFolder.add( scale, 'x', 0.0, 1.0, 0.01 )
+        .onChange( () => layeredNoiseBox.setMaterialUniform( 'frequency', updateFrequency ) );
+        frequencyFolder.add( scale, 'y', 0.0, 1.0, 0.01 )
+        .onChange( () => layeredNoiseBox.setMaterialUniform( 'frequency', updateFrequency ) );
+        frequencyFolder.add( scale, 'z', 0.0, 1.0, 0.01 )
+        .onChange( () => layeredNoiseBox.setMaterialUniform( 'frequency', updateFrequency ) );
 
-            material.uniforms.opacity.value = 1.0;
-            material.uniforms.size.value = new THREE.Vector2( planeWidth, planeHeight );
-            //material.uniforms.frequency.value = 0.03 + i * 0.01;
-            material.uniforms.frequency.value = xyFrequency;
-            material.transparent = true;
-
-            material.uniforms.power.value = 3.2;
-
-            material.uniforms.color1.value = randomVectorColor( 0.0 );
-            material.uniforms.color2.value = randomVectorColor( 1.0 );
-
-            ASSETHANDLER.loadTexture( ditheringTexturePath, false, ( texture ) => {
-                texture.wrapS = THREE.RepeatWrapping;
-                texture.wrapT = THREE.RepeatWrapping;
-
-                material.uniforms.hasDitheringTexture.value = true;
-                material.uniforms.ditheringTexture.value = texture;
-                material.uniforms.ditheringTextureDimensions.value = new THREE.Vector2( texture.image.width, texture.image.height );
-            } );
-
-            const plane = new THREE.Mesh( planeGeometry, material );
-
-            const z = i * planeOffsets + zStart;
-            plane.position.z = z;
-            material.uniforms[ 'z' ].value = zFrequency * z;
-
-            plane.scale.set( planeWidth, planeHeight, 1 );
-
-            plane.animationUpdate = ( delta, now ) => {
-                material.uniforms.offset.value.z += delta * 0.5;
-                material.uniforms.time.value = now;
-            };
-
-            this.scene.add( plane );
+        // Opacity helper
+        const opacityRange = { min: 0.5, max: 0.5 };
+        const updateOpacity = ( layer ) => {
+            return remap( layer, 0, layeredNoiseBox.layerPlanes.length, opacityRange.min, opacityRange.max );
         }
 
+        createRangeHelper( noiseBox, 'opacity', opacityRange, 0.0, 1.0, updateOpacity );
+
+        // Power helper
+        //const powerFolder = noiseBox.addFolder( 'power' );
+        const powerRange = { min: 0.1, max: 10.0 };
+        const updatePower = ( layer ) => {
+            return remap( layer, 0, layeredNoiseBox.layerPlanes.length, powerRange.min, powerRange.max );
+        };
+
+        createRangeHelper( noiseBox, 'power', powerRange, 0.1, 10.0, updatePower );
+
+        // Static/dithering
+        const ditherRange = { min: 0.1, max: 0.1 };
+        const updateDithering = ( layer ) => {
+            return remap( layer, 0, layeredNoiseBox.layerPlanes.length, ditherRange.min, ditherRange.max );
+        }
+
+        createRangeHelper( noiseBox, 'ditheringAmount', ditherRange, 0.0, 1.0, updateDithering );
+
+        const staticRange = { min: 0.0, max: 0.0 };
+        const updateStatic = ( layer ) => {
+            return remap( layer, 0, layeredNoiseBox.layerPlanes.length, staticRange.min, staticRange.max );
+        }
+
+        createRangeHelper( noiseBox, 'staticAmount', staticRange, 0.0, 1.0, updateStatic );
+
+        // Domain warp
+        const warpRange = { min: 0.0, max: 100.0 };
+        const updateWarp = ( layer ) => {
+            return remap( layer, 0, layeredNoiseBox.layerPlanes.length, warpRange.min, warpRange.max );
+        }
+
+        createRangeHelper( noiseBox, 'warpAmount', warpRange, 0.0, 100.0, updateWarp );
+
+
+        
+
+        this.scene.add( layeredNoiseBox );
     }
 }
 
