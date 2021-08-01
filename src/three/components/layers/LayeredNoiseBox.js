@@ -3,12 +3,35 @@ import { LayerShader } from '../../shaders/layer/LayerShader';
 
 import ditheringTexturePath from '../../../assets/noise/blue/LDR_RGBA_7.png';
 import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
+import { random } from '../../utils/Utils';
 
 const randomVectorColor = ( layer, alpha ) => {
     const color = new THREE.Color().setHSL(
         Math.random(),
         1.0 * Math.random(),
         Math.random() * 0.4 + 0.3
+    );
+
+    return new THREE.Vector4(
+        color.r,
+        color.g,
+        color.b,
+        alpha
+    );
+};
+
+const numberOfColors = Math.floor( random( 2, 5 ) );
+const hueOffset = 1.0 / numberOfColors;
+
+const complementaryVectorColor = ( layer, alpha ) => {
+    const hue = hueOffset * Math.floor( random( 0, numberOfColors ) );
+    const saturation = random( 0.5, 1.0 );
+    const value = random( 0.5, 0.7 );
+
+    const color = new THREE.Color().setHSL(
+        hue,
+        saturation,
+        value
     );
 
     return new THREE.Vector4(
@@ -40,7 +63,8 @@ const getDefaultOpts = () => {
 
         // Look
         opacity: 1.0,
-        colorFunction: randomVectorColor,
+        //colorFunction: randomVectorColor,
+        colorFunction: complementaryVectorColor,
 
         ditheringAmount: 0.04,
         staticAmount: 0.1,
