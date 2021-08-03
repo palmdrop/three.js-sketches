@@ -63,6 +63,24 @@ class ShapeMorphSketch extends Sketch {
         material.uniforms.tBackground.value = this.scene.background;
         material.uniforms.hasBackgroundTexture.value = true;
 
+        material.uniforms.pointLights.value = [
+            {
+                position: new THREE.Vector3( 5, 5, 5 ),
+                color: new THREE.Color( 0xff8899 ),
+                intensity: 1.5,
+                decay: 0.4
+            },
+            {
+                position: new THREE.Vector3( -5, -5, -5 ),
+                color: new THREE.Color( 0x88ddff ),
+                intensity: 1.5,
+                decay: 0.4
+            }
+        ];
+
+        material.uniforms.numberOfLights.value = 2;
+            //material.uniforms.pointLights.value.length;
+
 
         this.material = material;
 

@@ -1,5 +1,6 @@
 #pragma glslify: simplex3d = require(glsl-noise/simplex/3d);
 
+// Uniforms
 uniform sampler2D tBackground;
 uniform bool hasBackgroundTexture;
 
@@ -34,10 +35,26 @@ uniform float staticAmount;
 
 uniform float blurSize;
 
+// Lights
+struct PointLight {
+    vec3 position;
+    vec3 color;
+    float intensity;
+    float decay;
+};
+
+//const int maxLights = 8;
+#define MAX_LIGHTS 8
+
+uniform int numberOfLights;
+uniform PointLight pointLights[ MAX_LIGHTS ];
+
+
+// Varying
 varying vec2 vUv;
 varying vec4 worldPosition;
 
-float blurKernel[25] = float[](
+float blurKernel[ 25 ] = float[] (
     1.0 / 256.0, 4.0 / 256.0, 6.0 / 256.0, 4.0 / 256.0, 1.0 / 256.0,
     4.0 / 256.0, 16.0 / 256.0, 24.0 / 256.0, 16.0 / 256.0, 4.0 / 256.0,
     6.0 / 256.0, 24.0 / 256.0, 36.0 / 256.0, 24.0 / 256.0, 6.0 / 256.0,
@@ -71,27 +88,47 @@ float random ( vec2 st ) {
     return fract( sin( dot( st.xy, vec2( 12.9898,78.233 ) ) ) * 43758.5453123 );
 }
 
+vec3 applySingleLight( vec3 baseColor, vec3 position, PointLight light ) {
+    //PointLight light = pointLights[ index ];
+
+    vec3 lightPosition = light.position;
+    float dist = distance( position, lightPosition );
+
+    float intensity = light.intensity / pow( dist, light.decay );
+
+    return intensity * light.color;
+}
+
+vec3 applyLighting( vec3 baseColor, vec3 position ) {
+    // TODO: Add option to cast occlusion rays from light!
+    // TODO: use these rays to see how dense the object is between the position and the light
+
+    if( numberOfLights == 0 ) return baseColor;
+
+    vec3 lightColor;
+
+    lightColor += applySingleLight( baseColor, position, pointLights[ 0 ] );
+    if( numberOfLights == 1 ) return baseColor * lightColor;
+
+    lightColor += applySingleLight( baseColor, position, pointLights[ 1 ] );
+    if( numberOfLights == 2 ) return baseColor * lightColor;
+
+    return baseColor * lightColor;
+}
+
 void main() {
     int maxSteps = 100;
+    float stepSize = stepSizeMultiplier / float( steps );
 
     vec3 eyeToFragment = worldPosition.xyz - eyePosition;
     vec3 direction = normalize( eyeToFragment.xyz );
 
-    float stepSize = stepSizeMultiplier / float( steps );
-
-
     float divider = 0.0;
-
-    //TODO change color based on "distance" to viewer
-    //TODO determine how FAST the value increases
-
-    //TODO use accumulated sample value to determine alpha/threshold
-    //TODO use speed of change (weighted using falloff) to determine hue?
     float value = 0.0;
     float weightedValue = 0.0;
 
-    //vec2 uv = gl_FragCoord.xy / viewportSize;
     vec2 backgroundUV = vec2( 0, 0 );
+    vec3 color;
 
     for( int i = 0; i < min( steps, maxSteps ); i++ ) {
         float weight = pow( falloff, float( i ) );
@@ -110,15 +147,27 @@ void main() {
 
         backgroundUV += warpAmount * vec2( xOffset, yOffset );
 
-        n = clamp( n, 0.0, 1.0 );
+        //n = clamp( n, 0.0, 1.0 );
 
         n = contrast * pow( n, contrast );
-
         n += staticAmount * ( random( vUv ) * 2.0 - 1.0 );
+        n = clamp( n, 0.0, 1.0 );
 
         value += n;
         weightedValue += weight * n;
+
+        color += n * mix(
+            color1,
+            color2,
+            pow( float( i ) / float( steps ), falloff ) );
+
+
+        if( numberOfLights > 0 ) {
+            color = applyLighting( color, samplePosition );
+        }
     }
+
+    color *= brightness / value;
 
     value /= float( steps );
     weightedValue /= divider;
@@ -127,20 +176,12 @@ void main() {
     backgroundUV += gl_FragCoord.xy;
     backgroundUV /= viewportSize;
 
-    vec3 color = brightness * mix(
-        color1,
-        color2,
-        1.0 - weightedValue );
-
-    float alpha = alphaContrast * pow( alphaScale * value, alphaContrast );
-
-    //gl_FragColor = blur( tBackground, backgroundUV, blurSize );
+    float alpha = clamp( alphaContrast * pow( alphaScale * value, alphaContrast ), 0.0, 1.0 );
 
     if( hasBackgroundTexture ) {
-        //vec4 backgroundColor = texture2D( tBackground, backgroundUV );
         vec4 backgroundColor = blur( tBackground, backgroundUV, blurSize * ( 1.0 - weightedValue ) );
 
-        gl_FragColor = vec4( mix( color, backgroundColor.rgb, 1.0 - alpha ), 1.0 );
+        gl_FragColor = vec4( mix( backgroundColor.rgb, color, alpha ), 1.0 );
 
     } else {
         gl_FragColor = opacity * vec4( color, alpha );
