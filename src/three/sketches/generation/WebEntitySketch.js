@@ -151,9 +151,6 @@ class WebEntitySketch extends Sketch {
         const directionalLight = new THREE.DirectionalLight( ambientColor, 5 );
         this.scene.add( directionalLight );
 
-        //TODO RENDER WITH LEAVES VISIBLE AS GLOWING LIGHTS!?!!?!?!?
-        //TODO 
-
         const tree = new SpaceColonizationTree( 
             //0.2, // Min dist
             ( position ) => { return noise( 0.05 * position.x, 0.05 * position.y, 0.05 * position.z ) * 0.1 + 0.1 },

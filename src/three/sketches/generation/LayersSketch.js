@@ -41,8 +41,6 @@ class LayersSketch extends Sketch {
         //TODO render simple background, noise + color
 
         //TODO experiment with different blending function
-        //TODO expose all relevant parameters to gui
-        //TODO create object/class for cube thingy
         // TODO apply interesting warps, extreme "wobble" effects, etc
         const layeredNoiseBox = new LayeredNoiseBox( {
             width: 200,
@@ -117,7 +115,6 @@ class LayersSketch extends Sketch {
         createRangeHelper( noiseBox, 'opacity', opacityRange, 0.0, 1.0, updateOpacity );
 
         // Power helper
-        //const powerFolder = noiseBox.addFolder( 'power' );
         const powerRange = { min: 0.1, max: 10.0 };
         const updatePower = ( layer ) => {
             return remap( layer, 0, layeredNoiseBox.layerPlanes.length, powerRange.min, powerRange.max );
