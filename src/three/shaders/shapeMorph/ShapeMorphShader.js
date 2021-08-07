@@ -39,7 +39,7 @@ const ShapeMorphShader = {
         'time': { value: 0.0 },
 
         'numberOfLights': { value: 0 },
-        'pointLights': { value: [] },
+        'lights': { value: [] },
     },
 
     vertexShader: vertexShader,

@@ -36,7 +36,7 @@ uniform float staticAmount;
 uniform float blurSize;
 
 // Lights
-struct PointLight {
+struct Light {
     vec3 position;
     vec3 color;
     float intensity;
@@ -47,8 +47,7 @@ struct PointLight {
 #define MAX_LIGHTS 8
 
 uniform int numberOfLights;
-uniform PointLight pointLights[ MAX_LIGHTS ];
-
+uniform Light lights[ MAX_LIGHTS ];
 
 // Varying
 varying vec2 vUv;
@@ -88,9 +87,7 @@ float random ( vec2 st ) {
     return fract( sin( dot( st.xy, vec2( 12.9898,78.233 ) ) ) * 43758.5453123 );
 }
 
-vec3 applySingleLight( vec3 baseColor, vec3 position, PointLight light ) {
-    //PointLight light = pointLights[ index ];
-
+vec3 applySingleLight( vec3 baseColor, vec3 position, Light light ) {
     vec3 lightPosition = light.position;
     float dist = distance( position, lightPosition );
 
@@ -103,17 +100,26 @@ vec3 applyLighting( vec3 baseColor, vec3 position ) {
     // TODO: Add option to cast occlusion rays from light!
     // TODO: use these rays to see how dense the object is between the position and the light
 
+    //TODO use background texture to determine lighting as well? or environment map?
+
     if( numberOfLights == 0 ) return baseColor;
 
     vec3 lightColor;
 
-    lightColor += applySingleLight( baseColor, position, pointLights[ 0 ] );
+    lightColor += applySingleLight( baseColor, position, lights[ 0 ] );
     if( numberOfLights == 1 ) return baseColor * lightColor;
 
-    lightColor += applySingleLight( baseColor, position, pointLights[ 1 ] );
+    lightColor += applySingleLight( baseColor, position, lights[ 1 ] );
     if( numberOfLights == 2 ) return baseColor * lightColor;
 
     return baseColor * lightColor;
+}
+
+vec2 rotate2D( vec2 point, vec2 origin, float amount ) {
+    return vec2(
+        cos( amount ) * ( point.x - origin.x ) - sin( amount ) * ( point.y - origin.y ) + origin.x,
+        sin( amount ) * ( point.x - origin.x ) - cos( amount ) * ( point.y - origin.y ) + origin.y
+    );
 }
 
 void main() {
@@ -139,6 +145,12 @@ void main() {
             //+ vec3( 1.0 * time, 0.0, 0.0 );
             ;
 
+        /*float dist = distance( samplePosition, vec3( 0.0 ) );
+        float r = dist * 1.0;
+
+        samplePosition.xz = rotate2D( samplePosition.xz, vec2( 0.0 ), r );
+        */
+
         float xOffset = 0.5 + simplex3d( frequency * samplePosition + vec3( warpOffset, 0.0, 0.0 )) / 2.0; 
         float yOffset = 0.5 + simplex3d( frequency * samplePosition + vec3( 0.0, warpOffset, 0.0 )) / 2.0; 
         float zOffset = 0.5 + simplex3d( frequency * samplePosition + vec3( 0.0, 0.0, warpOffset )) / 2.0; 
@@ -159,7 +171,7 @@ void main() {
         color += n * mix(
             color1,
             color2,
-            pow( float( i ) / float( steps ), falloff ) );
+            pow( float( i ) / float( steps ), falloff ) ); 
 
 
         if( numberOfLights > 0 ) {

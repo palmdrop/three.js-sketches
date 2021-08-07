@@ -3,8 +3,13 @@ import { ShapeMorphShader } from '../../shaders/shapeMorph/ShapeMorphShader';
 
 import { Sketch } from "../template/Sketch";
 
-import backgroundTexturePath from '../../../assets/images/bleaves.png';
+//import backgroundTexturePath from '../../../assets/images/bleaves.png';
+//import backgroundTexturePath from '../../../assets/images/pond.png';
+import backgroundTexturePath from '../../../assets/images/grass.png';
+//import backgroundTexturePath from '../../../assets/images/night-tree.png';
 import { ASSETHANDLER } from '../../systems/assets/AssetHandler';
+
+import { guiHelpers } from '../../systems/debug/guiHelpers';
 
 class ShapeMorphSketch extends Sketch {
 
@@ -39,8 +44,7 @@ class ShapeMorphSketch extends Sketch {
 
         this.scene.background = backgroundTexture;
 
-        //TODO add simple light capabilities
-        //TODO do not determine angle, just determine depth (using weightedSample)
+        //TODO add rotation to noise warp, create sphere with rotating swirl effect
 
         //TODO warp light passing through object! custom blending?
         //TODO caustics?
@@ -52,7 +56,8 @@ class ShapeMorphSketch extends Sketch {
         const cubeSize = 10;
 
         const geometry = 
-            new THREE.BoxGeometry( 1.0, 1.0, 1.0 );
+            //new THREE.BoxGeometry( 1.0, 1.0, 1.0 );
+            new THREE.SphereBufferGeometry( 0.5, 100, 100, 100 );
             //new THREE.SphereBufferGeometry( 1, 20, 20 );
         const material = new THREE.ShaderMaterial( ShapeMorphShader );
 
@@ -63,38 +68,51 @@ class ShapeMorphSketch extends Sketch {
         material.uniforms.tBackground.value = this.scene.background;
         material.uniforms.hasBackgroundTexture.value = true;
 
-        material.uniforms.pointLights.value = [
+        material.uniforms.lights.value = [
             {
-                position: new THREE.Vector3( 5, 5, 5 ),
-                color: new THREE.Color( 0xff8899 ),
-                intensity: 1.5,
-                decay: 0.4
+                position: new THREE.Vector3( 10, 10, 10 ),
+                color: new THREE.Color( 'white' ),
+                intensity: 1.1,
+                decay: 0.3
             },
             {
-                position: new THREE.Vector3( -5, -5, -5 ),
-                color: new THREE.Color( 0x88ddff ),
-                intensity: 1.5,
-                decay: 0.4
+                position: new THREE.Vector3( -10, -10, -10 ),
+                color: new THREE.Color( 'white' ),
+                intensity: 1.1,
+                decay: 0.3
             }
         ];
-
         material.uniforms.numberOfLights.value = 2;
+
+        const addLightSliders = ( lightName, light ) => {
+            const folder = this.gui.addFolder( lightName );
+
+            guiHelpers.vector( folder, light, 'position' );
+            guiHelpers.color( folder, light, 'color' );
+            folder.add( light, 'intensity', 0, 10 );
+            folder.add( light, 'decay', 0, 10 );
+        };
+
+        addLightSliders( "light1", material.uniforms.lights.value[ 0 ] );
+        addLightSliders( "light2", material.uniforms.lights.value[ 1 ] );
+
             //material.uniforms.pointLights.value.length;
 
 
         this.material = material;
 
-        /*for( let i = 0; i < 6; i++ ) {
+        /*for( let i = 0; i < 10; i++ ) {
             const mesh = new THREE.Mesh( geometry, material );
-            mesh.scale.set( cubeSize, cubeSize, 10 / cubeSize );
+            mesh.scale.set( cubeSize, cubeSize, cubeSize / 10 );
 
-            mesh.position.z = i * 1.5;
+            mesh.position.z = i * 1.1;
 
             this.scene.add( mesh );
         }*/
         const mesh = new THREE.Mesh( geometry, material );
         mesh.scale.set( cubeSize, cubeSize, cubeSize );
         this.scene.add( mesh );
+        
 
 
         this.bounds = new THREE.Box3( 
@@ -158,11 +176,11 @@ class ShapeMorphSketch extends Sketch {
         this.material.uniforms.eyePosition.value = this.camera.position;
         this.material.uniforms.time.value = now;
 
-        if( this.bounds.containsPoint( this.camera.position ) ) {
+        /*if( this.bounds.containsPoint( this.camera.position ) ) {
             this.material.side = THREE.BackSide;
         } else {
             this.material.side = THREE.FrontSide;
-        }
+        }*/
     }
 
     handleResize() {
