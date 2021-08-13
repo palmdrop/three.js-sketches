@@ -5,6 +5,18 @@ uniform sampler2D tDiffuse;
 uniform vec2 viewportSize;
 uniform float time;
 
+uniform float offsetAmount;
+uniform float speed;
+uniform float blurSize;
+uniform float frequency;
+uniform float staticAmount;
+
+uniform float colorMorphAmount;
+uniform float colorMorphFrequency;
+uniform float rgbOffset;
+uniform float contrast;
+uniform float brightness;
+
 varying vec2 vUv;
 
 float getNoise( vec3 position, vec3 frequency, float amplitude, vec3 offset ) {
@@ -81,23 +93,10 @@ vec3 colorMorph( vec3 color, vec2 uv, float time, float frequency, float amount 
     return color;
 }
 
-
 void main() {
-    float offsetAmount = 0.15;
-    float speed = 0.04;
-    float blurSize = 2.0;
-    float frequency = 10.0;
-    float staticAmount = 0.01;
-
-    float colorMorphAmount = 0.2;
-
-    float rgbOffset = 0.01;
 
     //TODO think about possible "jittering" or division effects!
     //TODO how can I make the movements more divided, //// |||| [[[[]]]] occasionally?
-
-
-    //TODO use color to alter blur amount, offset, etc
 
     vec2 offset = vec2(
         // X
@@ -126,12 +125,17 @@ void main() {
         vec2( 0.0, previous.b * -rgbOffset )
     );
 
-    //vec4 texel = blur( tDiffuse, vUv + offset, t.b * 2.0 );
     vec4 texel = t;
 
     vec3 color = addStatic( texel.rgb, vUv + vec2( time, -time ), staticAmount );
 
-    color = colorMorph( color, uv, time, frequency / 3.0, colorMorphAmount );
+    color = colorMorph( color, uv, time, colorMorphFrequency, colorMorphAmount );
+    color = ( previous.rgb + color ) / 2.0;
 
-    gl_FragColor = vec4( ( previous.rgb + color ) / 2.0, 1.0 );
+    //color = pow( contrast * color, vec3( contrast ) );
+    //color *= brightness;
+    //color *= contrast;
+    //color += vec3( brightness - 1.0 );
+
+    gl_FragColor = vec4( color, 1.0 );
 }

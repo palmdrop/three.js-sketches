@@ -12,11 +12,11 @@ class Resizer {
         this.onResizeCallback = null;
     }
 
-    resize( additional ) {
+    resize( additional, sizeMultiplier = 1.0 ) {
         //const width = this.container.width;
         //const height = this.container.height;
-        const width = this.container.clientWidth;
-        const height = this.container.clientHeight;
+        const width = sizeMultiplier * this.container.clientWidth;
+        const height = sizeMultiplier * this.container.clientHeight;
 
         // Fetch the current size
         const currentSize = this.renderer.getSize(new THREE.Vector2());

@@ -22,9 +22,6 @@ const FullscreenSketch = ( { sketch } ) => {
           });
         }
       }
-
-      console.log(event.key);
-
     };
 
     window.addEventListener("keydown", onKeyPressed);

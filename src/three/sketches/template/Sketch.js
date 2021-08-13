@@ -14,6 +14,8 @@ class Sketch {
         this.backgroundColor = 0x455444;
         this.useSRGB = false;
 
+        this.sizeMultiplier = 1.0;
+
         this.paused = false;
         this.initialized = false;
         this.loaded = false;
@@ -113,6 +115,8 @@ class Sketch {
         });
 
         this._detectUpdatables();
+
+        this.handleResize();
     }
 
     _detectUpdatables() {
@@ -237,7 +241,7 @@ class Sketch {
 
     handleResize() {
         if( !this.initialized ) return;
-        this.resizer.resize( [ this.composer ] );
+        this.resizer.resize( [ this.composer ], this.sizeMultiplier );
     }
 
     captureFrame( dataCallback ) {

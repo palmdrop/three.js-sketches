@@ -1,8 +1,4 @@
 import * as THREE from 'three';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
-import { CopyShader } from 'three/examples/jsm/shaders/CopyShader';
 
 import { FeedbackRenderer } from "../../components/feedback/FeedbackRenderer";
 import { createFullScreenTextureRenderer, FullscreenQuadRenderer } from "../../components/render/FullscreenQuadRenderer";
@@ -12,52 +8,49 @@ import { Sketch } from "../template/Sketch";
 class TextFeedbackSketch extends Sketch {
     constructor() {
         super();
+        this.sizeMultiplier = 2.0;
 
-        /* TODO
-            * Background plane that covers entire screen
-            * Orthographic camera that watches the plane 
-                * camera view is rendered to plane
-                * post processing effects
-            * 3D/2D elements can be overlayed on top of plane
-                * either using orthographic camera
-                * or using player camera (perspective) (Could be cool effect)
-                * elements can be blended (add,mult,sub) in various ways
-            * plane can be rendered as background in main scene
+        this.overlayLastUpdateTime  = -1;
+        this.overlayUpdateFrequency = 1;
+    }
 
-            * scenes:
-                1) main, player scene (start with just orthographic camera, no movement?)
-                2) orthographic plane rendering scene
-        */
+    _renderOverlay() {
+        const ctx = this.overlayContext;
+        const canvas = ctx.canvas;
 
+        ctx.clearRect( 0, 0, canvas.width, canvas.height );
+
+        ctx.font = '100px serif';
+        ctx.fillStyle = '#fff';
+
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+
+        ctx.fillText( 'CONTENT', x, y );
+
+        ctx.fill();
     }
 
     _populateScene() {
-        //super._populateScene();
-
-        // CREATE RENDER TARGET AND COMPOSER FOR SCREEN
-        /*const renderTarget = new THREE.WebGLRenderTarget( 1.0, 1.0, {
-        });
-
-        const composer = new EffectComposer( this.renderer, renderTarget );
-        const renderPass = new RenderPass( this.scene, this.camera );
-        const shaderPass = new ShaderPass( FeedbackShader );
+        const ctx = document.createElement('canvas').getContext('2d');
         
-        //TODO use copypass if not working!
-        composer.addPass( renderPass );
-        composer.addPass( shaderPass );
-        composer.renderToScreen = false;
+        ctx.canvas.width = 1;
+        ctx.canvas.height = 1;
 
-        composer.setSize( this.canvas.width, this.canvas.height );
+        const overlay = new THREE.CanvasTexture(
+            ctx.canvas,
+            THREE.MirroredRepeatWrapping,
+            THREE.MirroredRepeatWrapping,
+        );
+        this.overlayContext = ctx;
+        this.overlay = overlay;
 
-        this.renderTarget = renderTarget;
-        this.composer = composer;
+        this._renderOverlay();
 
-        // CREATE QUAD*/
-
-        const feedbackRenderer = new FeedbackRenderer( this.renderer, FeedbackShader );
+        const feedbackRenderer = new FeedbackRenderer( this.renderer, FeedbackShader, overlay );
         feedbackRenderer.scene.background = new THREE.Color( 'black' );
+        feedbackRenderer.addGUI( this.gui );
         this.feedbackRenderer = feedbackRenderer;
-
 
         const quadGeometry = new THREE.PlaneBufferGeometry( 1, 1 );
         const quadMaterial = new THREE.MeshBasicMaterial( {
@@ -76,33 +69,37 @@ class TextFeedbackSketch extends Sketch {
     }
 
     _render( delta, now ) {
-        //this.composer.render( delta );
-        //this.composer.swapBuffers();
+        if( ( now - this.overlayLastUpdateTime ) > this.overlayUpdateFrequency ) {
+            this.overlay.needsUpdate = true;
+            this._renderOverlay();
+
+            this.overlayLastUpdateTime = now;
+        }
+
+
         this.feedbackRenderer.render( delta, now );
 
-        this.renderer.setRenderTarget( null );
-        this.renderer.render( this.scene, this.camera );
-    }
+        //this.renderer.setRenderTarget( null );
+        //this.renderer.render( this.scene, this.camera );
+        this.feedbackRenderer.render( delta, now, true );
 
-    /*_populateScene() {
-        this.feedbackRenderer = new FeedbackRenderer( this.renderer, FeedbackShader, "tDiffuse" );
-        this.fullscreenQuadRender = createFullScreenTextureRenderer(
-            this.renderer, 
-            this.feedbackRenderer.renderTarget.texture,
-            new THREE.WebGLRenderTarget( 1, 1 ),
-        );
+        if( this.captureNextFrame ) {
+            this.captureNextFrame = false;
+            this.dataCallback(
+                this.canvas.toDataURL("image/png")
+            );
+        }
     }
-
-    _render( delta, now ) {
-        this.feedbackRenderer.render();
-        this.fullscreenQuadRender.render();
-    }*/
 
     handleResize() {
         if( !this.initialized ) return;
+        this.resizer.resize( [ this.composer, this.feedbackRenderer ], this.sizeMultiplier );
+        /*super.handleResize();
+        this.feedbackRenderer.setSize();*/
+        this.overlayContext.canvas.width = this.canvas.width;
+        this.overlayContext.canvas.height = this.canvas.height;
 
-        super.handleResize();
-        this.feedbackRenderer.setSize();
+        this.overlay.needsUpdate = true;
     }
 }
 
